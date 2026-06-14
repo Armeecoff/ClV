@@ -11,6 +11,20 @@ async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncS
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migrations: add new columns if they don't exist yet
+        migrations = [
+            "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS upgrade_type VARCHAR(10) DEFAULT 'click' NOT NULL",
+            "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS auto_click_bonus FLOAT DEFAULT 0.0 NOT NULL",
+            "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS is_premium_only BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS clicks_bonus INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_clicks_per_second FLOAT DEFAULT 0.0 NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE NOT NULL",
+        ]
+        for sql in migrations:
+            try:
+                await conn.execute(__import__('sqlalchemy').text(sql))
+            except Exception:
+                pass
     await seed_upgrades()
 
 
