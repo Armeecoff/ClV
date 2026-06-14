@@ -13,7 +13,8 @@ from database.db import (
     adjust_balance, get_all_vpn_configs, add_vpn_config,
     edit_vpn_config, delete_vpn_config, toggle_vpn_active,
     get_all_users, set_admin, set_premium, get_user_by_telegram_id,
-    admin_add_upgrade, admin_edit_upgrade, admin_delete_upgrade
+    admin_add_upgrade, admin_edit_upgrade, admin_delete_upgrade,
+    delete_user
 )
 from config import ADMIN_IDS
 
@@ -344,3 +345,14 @@ async def admin_get_upgrades(telegram_id: int):
         }
         for u in upgrades
     ]
+
+
+class UserDelete(BaseModel):
+    admin_telegram_id: int
+    target_telegram_id: int
+
+
+@app.post("/api/admin/users/delete")
+async def admin_delete_user(data: UserDelete):
+    await require_admin(data.admin_telegram_id)
+    return await delete_user(data.target_telegram_id)

@@ -371,6 +371,17 @@ async def admin_edit_upgrade(upgrade_id: int, **kwargs) -> dict:
         return {"ok": True}
 
 
+async def delete_user(telegram_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        await session.delete(user)
+        await session.commit()
+        return {"ok": True}
+
+
 async def admin_delete_upgrade(upgrade_id: int) -> dict:
     async with async_session() as session:
         result = await session.execute(select(ClickUpgrade).where(ClickUpgrade.id == upgrade_id))
