@@ -16,7 +16,8 @@ from database.db import (
     admin_add_upgrade, admin_edit_upgrade, admin_delete_upgrade,
     delete_user, buy_premium_subscription,
     get_active_promotions, get_all_promotions, add_promotion,
-    delete_promotion, toggle_promotion
+    delete_promotion, toggle_promotion,
+    get_all_logs, get_user_logs
 )
 from config import ADMIN_IDS
 
@@ -438,3 +439,15 @@ async def admin_delete_promo(data: PromoAction):
 async def admin_toggle_promo(data: PromoAction):
     await require_admin(data.admin_telegram_id)
     return await toggle_promotion(data.promo_id)
+
+
+@app.get("/api/admin/logs/{telegram_id}")
+async def admin_get_logs(telegram_id: int):
+    await require_admin(telegram_id)
+    return await get_all_logs(300)
+
+
+@app.get("/api/admin/logs/user/{target_id}/{telegram_id}")
+async def admin_get_user_logs(target_id: int, telegram_id: int):
+    await require_admin(telegram_id)
+    return await get_user_logs(target_id)

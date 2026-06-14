@@ -34,6 +34,7 @@ class User(Base):
 
     upgrades = relationship("UserUpgrade", back_populates="user")
     vpn_purchases = relationship("VPNPurchase", back_populates="user")
+    activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
 
 
 class ClickUpgrade(Base):
@@ -97,6 +98,19 @@ class VPNPurchase(Base):
 
     user = relationship("User", back_populates="vpn_purchases")
     vpn_config = relationship("VPNConfig", back_populates="purchases")
+
+
+class UserActivityLog(Base):
+    __tablename__ = "user_activity_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    telegram_id = Column(BigInteger, nullable=False, index=True)
+    action_type = Column(String(30), nullable=False)
+    description = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="activity_logs")
 
 
 class Promotion(Base):

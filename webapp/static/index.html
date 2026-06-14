@@ -243,8 +243,23 @@ select.form-input { cursor:pointer; }
 
 /* ══ ADMIN TABS ══ */
 .admin-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
-.admin-tab { flex:1; min-width:60px; text-align:center; border:none; border-radius:8px; padding:7px 4px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; }
+.admin-tab { flex:1; min-width:55px; text-align:center; border:none; border-radius:8px; padding:7px 4px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; }
 .admin-tab.active { background:var(--accent); color:#fff; }
+
+.log-filter-btn { border:1px solid var(--border); background:var(--bg3); color:var(--text2); border-radius:8px; padding:4px 9px; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.log-filter-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.log-entry { display:flex; gap:8px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--border); }
+.log-entry:last-child { border-bottom:none; }
+.log-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.log-body { flex:1; min-width:0; }
+.log-who { font-size:12px; font-weight:700; color:var(--text); }
+.log-desc { font-size:11px; color:var(--text2); margin-top:1px; }
+.log-time { font-size:10px; color:var(--text2); opacity:.7; margin-top:2px; font-family:monospace; }
+.log-type-vpn_buy      { color:#33aaff; }
+.log-type-upgrade_buy  { color:var(--accent2); }
+.log-type-balance_add  { color:var(--green); }
+.log-type-balance_remove { color:var(--red); }
+.log-type-premium_buy  { color:#f5d060; }
 
 /* ══ LOADER / EMPTY ══ */
 .loader { display:flex; align-items:center; justify-content:center; min-height:80px; }
@@ -503,6 +518,7 @@ select.form-input { cursor:pointer; }
     <button class="admin-tab" onclick="switchAdminTab('users')">Юзеры</button>
     <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
     <button class="admin-tab" onclick="switchAdminTab('promos')">Акции</button>
+    <button class="admin-tab" onclick="switchAdminTab('logs')">📋 Логи</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -541,6 +557,22 @@ select.form-input { cursor:pointer; }
   <div id="admin-tab-promos" style="display:none">
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddPromoModal()">➕ Добавить акцию</button>
     <div id="admin-promos-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
+  <div id="admin-tab-logs" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="section-title" style="margin:0">📋 Последние 300 событий</div>
+      <button class="btn btn-outline btn-sm" onclick="loadAdminLogs()">🔄</button>
+    </div>
+    <div id="admin-logs-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="log-filter-btn active" onclick="filterLogs('all',this)">Все</button>
+      <button class="log-filter-btn" onclick="filterLogs('vpn_buy',this)">🔐 VPN</button>
+      <button class="log-filter-btn" onclick="filterLogs('upgrade_buy',this)">⚡ Улучшения</button>
+      <button class="log-filter-btn" onclick="filterLogs('balance_add',this)">➕ Пополнение</button>
+      <button class="log-filter-btn" onclick="filterLogs('balance_remove',this)">➖ Снятие</button>
+      <button class="log-filter-btn" onclick="filterLogs('premium_buy',this)">⭐ Premium</button>
+    </div>
+    <div id="admin-logs-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
 </div>
 
@@ -614,6 +646,16 @@ select.form-input { cursor:pointer; }
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-upgrade')">Отмена</button>
       <button class="btn btn-primary" style="flex:1" onclick="submitUpgradeForm()">Сохранить</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: User logs -->
+<div class="modal-overlay" id="modal-user-logs">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-user-logs-title">📋 Логи игрока</div>
+    <div id="modal-user-logs-body" style="max-height:60vh;overflow-y:auto"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:12px" onclick="closeModal('modal-user-logs')">Закрыть</button>
   </div>
 </div>
 
@@ -2132,16 +2174,17 @@ async function loadPromos() {
 let curAdminTab = 'vpn';
 function switchAdminTab(tab) {
   curAdminTab = tab;
-  ['vpn','upgrades','users','balance','promos'].forEach(t => {
+  ['vpn','upgrades','users','balance','promos','logs'].forEach(t => {
     document.getElementById(`admin-tab-${t}`).style.display = t===tab?'block':'none';
   });
   document.querySelectorAll('.admin-tab').forEach((b,i) => {
-    b.classList.toggle('active', ['vpn','upgrades','users','balance','promos'][i]===tab);
+    b.classList.toggle('active', ['vpn','upgrades','users','balance','promos','logs'][i]===tab);
   });
   if (tab==='vpn')      loadAdminVPN();
   if (tab==='upgrades') loadAdminUpgrades();
   if (tab==='users')    loadAdminUsers();
   if (tab==='promos')   loadAdminPromos();
+  if (tab==='logs')     loadAdminLogs();
 }
 
 async function loadAdminVPN() {
@@ -2213,15 +2256,73 @@ async function loadAdminUsers() {
   c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
     const list = await fetch(`/api/admin/users/${S.user.telegram_id}`).then(r=>r.json());
-    c.innerHTML = list.map(u => `
-      <div class="user-row">
+    c.innerHTML = list.map(u => {
+      const name = (u.first_name||u.username||'—').replace(/'/g,'`');
+      return `<div class="user-row">
         <div style="flex:1">
           <div class="user-name">${u.first_name||u.username||'—'} ${u.is_admin?'👑':''} ${u.is_premium?'⭐':''}</div>
           <div class="user-meta">ID:${u.telegram_id} · 💰${Math.floor(u.balance)} · 🖱${u.total_clicks}</div>
         </div>
-        <button class="btn btn-del btn-sm" onclick="adminDeleteUser(${u.telegram_id},'${(u.first_name||u.username||'—').replace(/'/g,'`')}')">🗑</button>
-      </div>`).join('') || '<div class="empty">Нет юзеров</div>';
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-outline btn-sm" title="Логи" onclick="openUserLogsModal(${u.telegram_id},'${name}')">📋</button>
+          <button class="btn btn-del btn-sm" onclick="adminDeleteUser(${u.telegram_id},'${name}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty">Нет юзеров</div>';
   } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+let _allLogs = [];
+const LOG_ICONS = {vpn_buy:'🔐',upgrade_buy:'⚡',balance_add:'💚',balance_remove:'🔴',premium_buy:'⭐'};
+
+function logEntryHtml(log, showWho=true) {
+  const icon = LOG_ICONS[log.action_type] || '📌';
+  const dt = new Date(log.created_at);
+  const time = dt.toLocaleString('ru',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const who = showWho ? `<div class="log-who"><span class="log-type-${log.action_type}">${icon}</span> ${log.first_name||log.username||'—'} <span style="opacity:.5;font-weight:400">· ${log.telegram_id}</span></div>` : `<div class="log-who"><span class="log-type-${log.action_type}">${icon} ${log.action_type}</span></div>`;
+  return `<div class="log-entry">
+    <div class="log-body">
+      ${who}
+      <div class="log-desc">${log.description}</div>
+      <div class="log-time">${time}</div>
+    </div>
+  </div>`;
+}
+
+async function loadAdminLogs() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-logs-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    _allLogs = await fetch(`/api/admin/logs/${S.user.telegram_id}`).then(r=>r.json());
+    renderLogs('all');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function renderLogs(type) {
+  const c = document.getElementById('admin-logs-list');
+  const filtered = type==='all' ? _allLogs : _allLogs.filter(l=>l.action_type===type);
+  if (!filtered.length) { c.innerHTML='<div class="empty">Нет событий</div>'; return; }
+  c.innerHTML = filtered.map(l=>logEntryHtml(l,true)).join('');
+}
+
+function filterLogs(type, btn) {
+  document.querySelectorAll('.log-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLogs(type);
+}
+
+async function openUserLogsModal(tgId, name) {
+  if (!S.user) return;
+  document.getElementById('modal-user-logs-title').textContent = `📋 Логи: ${name}`;
+  const body = document.getElementById('modal-user-logs-body');
+  body.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  openModal('modal-user-logs');
+  try {
+    const logs = await fetch(`/api/admin/logs/user/${tgId}/${S.user.telegram_id}`).then(r=>r.json());
+    if (!logs.length) { body.innerHTML='<div class="empty" style="padding:24px 0">Нет событий</div>'; return; }
+    body.innerHTML = logs.map(l=>logEntryHtml({...l,first_name:name},false)).join('');
+  } catch(e) { body.innerHTML='<div class="empty">Ошибка загрузки</div>'; }
 }
 
 async function adminDeleteUser(tgId, name) {

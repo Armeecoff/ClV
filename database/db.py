@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy import select, delete
 from datetime import datetime, timedelta
 from config import DATABASE_URL, ADMIN_IDS
-from database.models import Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase, Promotion
+from database.models import Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase, Promotion, UserActivityLog
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -26,6 +26,60 @@ async def init_db():
             except Exception:
                 pass
     await seed_upgrades()
+
+
+async def add_user_log(user_id: int, telegram_id: int, action_type: str, description: str):
+    async with async_session() as session:
+        log = UserActivityLog(
+            user_id=user_id, telegram_id=telegram_id,
+            action_type=action_type, description=description
+        )
+        session.add(log)
+        await session.commit()
+
+
+async def get_all_logs(limit: int = 300) -> list:
+    from sqlalchemy import desc
+    async with async_session() as session:
+        result = await session.execute(
+            select(UserActivityLog, User)
+            .join(User, UserActivityLog.user_id == User.id)
+            .order_by(desc(UserActivityLog.created_at))
+            .limit(limit)
+        )
+        rows = result.all()
+        return [
+            {
+                "id": log.id,
+                "telegram_id": log.telegram_id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "action_type": log.action_type,
+                "description": log.description,
+                "created_at": log.created_at.isoformat()
+            }
+            for log, user in rows
+        ]
+
+
+async def get_user_logs(telegram_id: int) -> list:
+    from sqlalchemy import desc
+    async with async_session() as session:
+        result = await session.execute(
+            select(UserActivityLog)
+            .where(UserActivityLog.telegram_id == telegram_id)
+            .order_by(desc(UserActivityLog.created_at))
+            .limit(100)
+        )
+        return [
+            {
+                "id": log.id,
+                "action_type": log.action_type,
+                "description": log.description,
+                "created_at": log.created_at.isoformat()
+            }
+            for log in result.scalars().all()
+        ]
 
 
 async def seed_upgrades():
@@ -188,12 +242,17 @@ async def buy_upgrade(telegram_id: int, upgrade_id: int) -> dict:
         uu = UserUpgrade(user_id=user.id, upgrade_id=upgrade.id)
         session.add(uu)
         await session.commit()
-        return {
+        result2 = {
             "ok": True,
             "new_balance": user.balance,
             "clicks_per_click": user.clicks_per_click,
             "auto_clicks_per_second": user.auto_clicks_per_second
         }
+    await add_user_log(
+        user.id, user.telegram_id, "upgrade_buy",
+        f"Куплено улучшение «{upgrade.name}» за {int(upgrade.price)} кликов"
+    )
+    return result2
 
 
 async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
@@ -215,11 +274,12 @@ async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
         user.premium_until = base + timedelta(days=days_map[period])
         user.is_premium = True
         await session.commit()
-        return {
-            "ok": True,
-            "new_balance": user.balance,
-            "premium_until": user.premium_until.isoformat()
-        }
+        uid, unm, until = user.id, user.telegram_id, user.premium_until
+    await add_user_log(
+        uid, unm, "premium_buy",
+        f"Куплен Premium на {days_map[period]} дней за {int(prices[period])} кликов"
+    )
+    return {"ok": True, "new_balance": user.balance, "premium_until": until.isoformat()}
 
 
 async def get_vpn_configs() -> list[VPNConfig]:
@@ -307,7 +367,12 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=vpn.price_clicks, expires_at=expires_at)
         session.add(purchase)
         await session.commit()
-        return {"ok": True, "config_data": vpn.config_data, "expires_at": expires_at.isoformat(), "new_balance": user.balance}
+        res = {"ok": True, "config_data": vpn.config_data, "expires_at": expires_at.isoformat(), "new_balance": user.balance}
+    await add_user_log(
+        user.id, user.telegram_id, "vpn_buy",
+        f"Куплен VPN «{vpn.name}» за {int(effective_price)} кликов, истекает {expires_at.strftime('%d.%m.%Y')}"
+    )
+    return res
 
 
 async def get_user_vpn_purchases(telegram_id: int) -> list:
@@ -339,7 +404,11 @@ async def adjust_balance(telegram_id: int, amount: float) -> dict:
             return {"ok": False, "error": "Пользователь не найден"}
         user.balance = max(0, user.balance + amount)
         await session.commit()
-        return {"ok": True, "new_balance": user.balance}
+        uid, unm = user.id, user.telegram_id
+    action = "balance_add" if amount >= 0 else "balance_remove"
+    desc = f"{'Начислено' if amount >= 0 else 'Снято'} {abs(int(amount))} кликов администратором"
+    await add_user_log(uid, unm, action, desc)
+    return {"ok": True, "new_balance": user.balance}
 
 
 async def toggle_vpn_active(vpn_id: int) -> dict:
