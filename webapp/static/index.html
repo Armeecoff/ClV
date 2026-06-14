@@ -146,11 +146,15 @@ body.theme-crystals #crystal-canvas { opacity:1; }
   100% { background:radial-gradient(circle at 35% 35%,#ff8080,#ff0000 60%,#cc0000); }
 }
 .click-btn.skin-color { background:radial-gradient(circle at 35% 35%, var(--accent2), var(--accent) 60%, var(--accent3)); border-color:var(--accent2); }
-.click-btn.skin-gradient { animation:gradientSkin 4s linear infinite; }
-@keyframes gradientSkin {
-  0%,100%{ background:radial-gradient(circle at 35% 35%,#ffdf80,#d4af37 60%,#a07000); border-color:#f5d060; }
-  33%    { background:radial-gradient(circle at 35% 35%,#e080ff,#8040c0 60%,#500080); border-color:#e0a0ff; }
-  66%    { background:radial-gradient(circle at 35% 35%,#80ffee,#00c0a0 60%,#008060); border-color:#80ffee; }
+.click-btn.skin-gradient {
+  background: conic-gradient(from 0deg, #ff0080, #ff8c00, #ffe000, #40ff40, #00cfff, #7c6cf7, #ff0080);
+  border-color: #fff;
+  animation: gradientSpin 4s linear infinite;
+  filter: saturate(1.4) brightness(1.1);
+}
+@keyframes gradientSpin {
+  from { filter: hue-rotate(0deg) saturate(1.4) brightness(1.1); }
+  to   { filter: hue-rotate(360deg) saturate(1.4) brightness(1.1); }
 }
 .click-btn:active { transform:scale(.91); box-shadow:0 0 20px rgba(124,108,247,.3); }
 .click-hint { color:var(--text2); font-size:13px; }
@@ -191,7 +195,7 @@ body.theme-crystals #crystal-canvas { opacity:1; }
 .tag-premium { background:linear-gradient(135deg,rgba(212,175,55,.3),rgba(245,208,96,.2)); color:#f5d060; border:1px solid #d4af37; }
 
 /* ══ PROFILE ══ */
-.profile-avatar { width:74px; height:74px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent3)); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 12px; border:3px solid var(--accent); }
+.profile-avatar { width:74px; height:74px; min-width:74px; min-height:74px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent3)); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 12px; border:3px solid var(--accent); align-self:center; flex-shrink:0; aspect-ratio:1/1; }
 .profile-name { font-size:18px; font-weight:700; text-align:center; }
 .profile-id { font-size:12px; color:var(--text2); text-align:center; margin-top:3px; }
 .crown { color:#f5d060; margin-left:4px; }
@@ -224,8 +228,8 @@ select.form-input { cursor:pointer; }
 .theme-btn.active { border-color:var(--accent); box-shadow:0 0 10px rgba(124,108,247,.3); }
 .theme-btn .t-icon { font-size:22px; margin-bottom:4px; }
 .color-grid { display:flex; flex-wrap:wrap; gap:10px; padding:2px 0; }
-.color-btn { width:30px; height:30px; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:all .2s; position:relative; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,.4); }
-.color-btn.active::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.9); }
+.color-btn { width:60px; height:60px; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:all .2s; position:relative; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+.color-btn.active::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.9); }
 .color-btn.active { border-color:#fff; transform:scale(1.18); box-shadow:0 0 10px rgba(255,255,255,.35); }
 .period-btn { border:2px solid var(--border); border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); }
 .period-btn.active { border-color:#d4af37; background:rgba(212,175,55,.13); }
@@ -274,6 +278,46 @@ select.form-input { cursor:pointer; }
 /* ══ PREMIUM BADGE ══ */
 .premium-banner { background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(245,208,96,.1)); border:1px solid #d4af37; border-radius:12px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
 .premium-banner .icon { font-size:28px; }
+
+/* ══ SHOP TABS ══ */
+.shop-tabs { display:flex; gap:6px; margin-bottom:14px; }
+.shop-tab { flex:1; text-align:center; border:none; border-radius:10px; padding:9px 4px; font-size:12px; font-weight:700; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; border:1px solid var(--border); }
+.shop-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+/* ══ PROMO CARD ══ */
+.promo-card { border-radius:14px; padding:13px 15px; margin-bottom:10px; display:flex; align-items:center; gap:12px; position:relative; overflow:hidden; }
+.promo-card::before { content:''; position:absolute; inset:0; opacity:.08; }
+.promo-card-fire { background:linear-gradient(135deg,rgba(255,70,0,.18),rgba(255,160,0,.12)); border:1px solid rgba(255,100,0,.5); }
+.promo-card-blue { background:linear-gradient(135deg,rgba(0,136,255,.18),rgba(0,200,255,.12)); border:1px solid rgba(0,136,255,.5); }
+.promo-card-gold { background:linear-gradient(135deg,rgba(212,175,55,.22),rgba(245,208,96,.12)); border:1px solid rgba(212,175,55,.55); }
+.promo-card-green { background:linear-gradient(135deg,rgba(34,197,94,.18),rgba(74,222,128,.1)); border:1px solid rgba(34,197,94,.45); }
+.promo-icon { font-size:36px; flex-shrink:0; }
+.promo-timer { font-size:11px; font-weight:700; color:var(--red); margin-top:3px; font-family:monospace; }
+
+/* ══ ITEM CARD ══ */
+.item-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.item-card { background:var(--bg3); border:2px solid var(--border); border-radius:14px; padding:14px 10px; text-align:center; cursor:pointer; transition:all .2s; position:relative; }
+.item-card.owned { border-color:var(--green); }
+.item-card.equipped { border-color:var(--accent); background:rgba(124,108,247,.1); box-shadow:0 0 12px rgba(124,108,247,.2); }
+.item-icon { font-size:38px; margin-bottom:6px; }
+.item-name { font-size:12px; font-weight:700; margin-bottom:2px; }
+.item-desc { font-size:10px; color:var(--text2); margin-bottom:6px; }
+.item-badge { position:absolute; top:6px; right:6px; font-size:9px; font-weight:700; padding:2px 5px; border-radius:5px; }
+.item-badge-owned { background:rgba(74,222,128,.2); color:var(--green); }
+.item-badge-equip { background:rgba(124,108,247,.25); color:var(--accent2); }
+
+/* ══ ITEM EFFECTS ══ */
+@keyframes ringPulse {
+  0%,100% { box-shadow:0 0 0 4px var(--accent),0 0 16px var(--accent3),0 0 40px rgba(124,108,247,.25); }
+  50%      { box-shadow:0 0 0 7px var(--accent2),0 0 28px var(--accent),0 0 60px rgba(124,108,247,.35); }
+}
+@keyframes glowPulse  { 0%,100%{filter:drop-shadow(0 0 10px var(--accent)) brightness(1.05)} 50%{filter:drop-shadow(0 0 22px var(--accent2)) brightness(1.15)} }
+@keyframes crownFloat { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-5px)} }
+.item-ring  { animation:ringPulse 2s ease-in-out infinite; }
+.item-glow  { animation:glowPulse 1.8s ease-in-out infinite; }
+.click-btn::after { content:''; display:none; position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:22px; animation:crownFloat 2s ease-in-out infinite; }
+.click-btn.item-crown::after { content:'👑'; display:block; }
+
 </style>
 </head>
 <body>
@@ -312,15 +356,28 @@ select.form-input { cursor:pointer; }
   </div>
 </div>
 
-<!-- SHOP (upgrades) -->
+<!-- SHOP (upgrades + items + promos) -->
 <div id="page-shop" class="page">
-  <div class="header"><h1>🛒 Магазин</h1><p>Улучшения кликера</p></div>
+  <div class="header"><h1>🛒 Магазин</h1><p id="shop-subtitle">Улучшения кликера</p></div>
   <div class="balance-bar">
     <div><div class="balance-label">💰 Баланс</div><div class="balance-value" id="shop-balance">0</div></div>
     <span class="cpc-badge" id="shop-cpc">+1/клик</span>
   </div>
-  <div id="shop-premium-section"></div>
-  <div id="upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
+  <div class="shop-tabs">
+    <button class="shop-tab active" id="stab-upgrades" onclick="switchShopTab('upgrades')">⚡ Улучшения</button>
+    <button class="shop-tab" id="stab-items" onclick="switchShopTab('items')">🎁 Предметы</button>
+    <button class="shop-tab" id="stab-promos" onclick="switchShopTab('promos')">🎉 Акции</button>
+  </div>
+  <div id="shop-tab-upgrades">
+    <div id="shop-premium-section"></div>
+    <div id="upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+  <div id="shop-tab-items" style="display:none">
+    <div class="item-grid" id="items-list"></div>
+  </div>
+  <div id="shop-tab-promos" style="display:none">
+    <div id="promos-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
 </div>
 
 <!-- VPN -->
@@ -395,11 +452,11 @@ select.form-input { cursor:pointer; }
       <button class="color-btn" style="background:#06b6d4" onclick="setColor('cyan')"   id="cbtn-cyan"  ></button>
       <div style="position:relative" title="5000 кликов">
         <button class="color-btn" style="background:linear-gradient(135deg,#94a3b8,#cbd5e1)" onclick="setColor('silver','silver')" id="cbtn-silver"></button>
-        <div id="price-silver" style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
+        <div id="price-silver" style="position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
       </div>
       <div style="position:relative" title="5000 кликов">
         <button class="color-btn" style="background:linear-gradient(135deg,#d4af37,#f5d060)" onclick="setColor('gold','gold')" id="cbtn-gold"></button>
-        <div id="price-gold" style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
+        <div id="price-gold" style="position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
       </div>
     </div>
     <div style="margin-top:18px"></div>
@@ -425,11 +482,11 @@ select.form-input { cursor:pointer; }
       </div>
       <div class="skin-card locked" id="skin-custom" onclick="openCustomSkinModal()">
         <div class="skin-preview" id="custom-skin-preview">🎮</div>
-        <div class="skin-name">🎨 Кастомный</div>
-        <div class="skin-price">10 000 кликов</div>
+        <div class="skin-name">🎨 Своё эмодзи</div>
+        <div class="skin-price" id="skin-custom-price">10 000 кликов</div>
       </div>
       <div class="skin-card locked" id="skin-gradient" onclick="setSkin('gradient')" style="grid-column:1/-1">
-        <div class="skin-preview" style="animation:gradientSkin 3s linear infinite;border-radius:50%;width:44px;height:44px;margin:0 auto 6px"></div>
+        <div class="skin-preview" style="background:conic-gradient(from 0deg,#ff0080,#ff8c00,#ffe000,#40ff40,#00cfff,#7c6cf7,#ff0080);animation:gradientSpin 4s linear infinite;border-radius:50%;width:44px;height:44px;margin:0 auto 6px"></div>
         <div class="skin-name">✨ Градиент Premium</div>
         <div class="skin-price" id="skin-gradient-price">👑 Только для Premium</div>
       </div>
@@ -445,6 +502,7 @@ select.form-input { cursor:pointer; }
     <button class="admin-tab" onclick="switchAdminTab('upgrades')">Улучшения</button>
     <button class="admin-tab" onclick="switchAdminTab('users')">Юзеры</button>
     <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
+    <button class="admin-tab" onclick="switchAdminTab('promos')">Акции</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -478,6 +536,11 @@ select.form-input { cursor:pointer; }
       <button class="btn btn-success btn-sm" onclick="adminSetPremium(true)">⭐ Выдать Premium</button>
       <button class="btn btn-danger btn-sm"  onclick="adminSetPremium(false)">❌ Снять Premium</button>
     </div>
+  </div>
+
+  <div id="admin-tab-promos" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddPromoModal()">➕ Добавить акцию</button>
+    <div id="admin-promos-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
 </div>
 
@@ -569,6 +632,31 @@ select.form-input { cursor:pointer; }
   </div>
 </div>
 
+<!-- MODAL: Add Promotion -->
+<div class="modal-overlay" id="modal-add-promo">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ Добавить акцию</div>
+    <div class="form-group"><label class="form-label">Иконка</label><input class="form-input" id="promo-add-icon" value="🎉" placeholder="🎉"></div>
+    <div class="form-group"><label class="form-label">Название *</label><input class="form-input" id="promo-add-title" placeholder="Двойные клики!"></div>
+    <div class="form-group"><label class="form-label">Описание</label><input class="form-input" id="promo-add-desc" placeholder="Только сегодня"></div>
+    <div class="form-group">
+      <label class="form-label">Тип акции</label>
+      <select class="form-input" id="promo-add-type">
+        <option value="click_mult">× Умножитель кликов</option>
+        <option value="vpn_disc">% Скидка на VPN</option>
+        <option value="auto_mult">× Умножитель авто-кликов</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Значение * (напр. 2 = ×2 или 20 = −20%)</label><input type="number" step="0.1" class="form-input" id="promo-add-value" placeholder="2"></div>
+    <div class="form-group"><label class="form-label">Конец акции *</label><input type="datetime-local" class="form-input" id="promo-add-endat"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-promo')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitPromoForm()">Создать</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -597,6 +685,7 @@ async function init() {
   applyTheme(S.theme, false);
   applyColor(S.color, false);
   applySkin(S.skin, false);
+  applyItemEffect(equippedItem);
   initBgEffects();
   initSettings();
 
@@ -670,6 +759,7 @@ document.getElementById('click-btn').addEventListener('click', function(e) {
   pendingClicks++;
   updateBalanceUI();
   spawnFloat(e.clientX, e.clientY);
+  spawnClickEffect(e.clientX, e.clientY);
   scheduleFlush();
 });
 
@@ -761,6 +851,14 @@ async function buyUpgrade(upgradeId, price, name) {
   if (!S.user) return;
   if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error'); return; }
   try {
+    await flushClicks();
+    if (pendingAuto > 0) {
+      const autoToSend = Math.floor(pendingAuto);
+      if (autoToSend > 0) {
+        pendingAuto -= autoToSend;
+        await fetch(`/api/autoclicks/${S.user.telegram_id}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({count:autoToSend})}).catch(()=>{});
+      }
+    }
     const res  = await fetch(`/api/upgrades/buy/${S.user.telegram_id}/${upgradeId}`, {method:'POST'});
     const data = await res.json();
     if (data.ok) {
@@ -920,9 +1018,8 @@ function setColor(name, key=null, save=true) {
 function applyColor(name, save=true) { setColor(name, null, save); }
 
 function setSkin(name) {
-  if (!S.ownedSkins.includes(name)) {
-    buySkin(name); return;
-  }
+  if (name === 'custom') { openCustomSkinModal(); return; }
+  if (!S.ownedSkins.includes(name)) { buySkin(name); return; }
   S.skin = name;
   localStorage.setItem('skin', name);
   applySkin(name);
@@ -931,16 +1028,15 @@ function setSkin(name) {
 
 function applySkin(name, save=true) {
   const btn = document.getElementById('click-btn');
-  btn.classList.remove('skin-rainbow','skin-color','skin-gradient');
-  if (name === 'rainbow') btn.classList.add('skin-rainbow');
-  else if (name === 'color') btn.classList.add('skin-color');
+  btn.classList.remove('skin-rainbow','skin-color','skin-gradient','skin-custom');
+  if (name === 'rainbow')       btn.classList.add('skin-rainbow');
+  else if (name === 'color')    btn.classList.add('skin-color');
   else if (name === 'gradient') btn.classList.add('skin-gradient');
-  if (name === 'custom') btn.textContent = S.customEmoji;
-  else if (!['rainbow','color','gradient'].includes(name)) btn.textContent = '💎';
+  btn.textContent = S.ownedSkins.includes('custom') ? S.customEmoji : '💎';
 }
 
 function updateSkinUI() {
-  ['default','color','rainbow','custom','gradient'].forEach(s => {
+  ['default','color','rainbow','gradient'].forEach(s => {
     const card = document.getElementById(`skin-${s}`);
     if (!card) return;
     card.classList.remove('active','locked');
@@ -949,11 +1045,18 @@ function updateSkinUI() {
   });
   const gp = document.getElementById('skin-gradient-price');
   if (gp) gp.textContent = S.ownedSkins.includes('gradient') ? 'Разблокировано ✅' : '👑 Только для Premium';
+  const cc = document.getElementById('skin-custom');
+  const cp = document.getElementById('skin-custom-price');
+  if (cc) { cc.classList.remove('active','locked'); if (!S.ownedSkins.includes('custom')) cc.classList.add('locked'); }
+  if (cp) cp.textContent = S.ownedSkins.includes('custom') ? `${S.customEmoji} Изменить` : '10 000 кликов';
 }
 
 async function buySkin(name) {
   if (!S.user) return;
-  if (S.ownedSkins.includes(name)) { setSkin(name); return; }
+  if (S.ownedSkins.includes(name)) {
+    if (name !== 'custom') setSkin(name);
+    return;
+  }
   if (name === 'gradient') {
     if (!S.isPremium) { showToast('👑 Доступно только с Premium подпиской','error'); return; }
     S.ownedSkins.push('gradient');
@@ -970,14 +1073,23 @@ async function buySkin(name) {
   localStorage.setItem('ownedSkins', JSON.stringify(S.ownedSkins));
   await flushClicks();
   updateBalanceUI();
-  showToast(`✅ Скин разблокирован!`,'success');
-  setSkin(name);
+  if (name === 'custom') {
+    showToast('✅ Смена эмодзи разблокирована!','success');
+  } else {
+    showToast('✅ Скин разблокирован!','success');
+    setSkin(name);
+  }
   updateSkinUI();
 }
 
-function openCustomSkinModal() {
-  if (!S.ownedSkins.includes('custom')) { buySkin('custom'); return; }
+async function openCustomSkinModal() {
+  if (!S.ownedSkins.includes('custom')) {
+    await buySkin('custom');
+    if (!S.ownedSkins.includes('custom')) return;
+  }
+  buildEmojiGrid();
   document.getElementById('current-emoji-display').textContent = S.customEmoji;
+  document.getElementById('custom-emoji-input').value = S.customEmoji;
   openModal('modal-custom-skin');
 }
 
@@ -999,7 +1111,7 @@ function applyCustomEmoji() {
   S.customEmoji = v;
   localStorage.setItem('customEmoji', v);
   document.getElementById('custom-skin-preview').textContent = v;
-  if (S.skin === 'custom') { document.getElementById('click-btn').textContent = v; }
+  document.getElementById('click-btn').textContent = v;
   closeModal('modal-custom-skin');
 }
 
@@ -1434,13 +1546,32 @@ function startSakura() {
     return {
       x:tip.x+(Math.random()-.5)*55, y:tip.y+(Math.random()-.5)*30,
       vx:(Math.random()-.5)*1.5, vy:0.45+Math.random()*1.5,
-      rot:Math.random()*Math.PI*2, vrot:(Math.random()-.5)*0.1,
-      a:0.85+Math.random()*0.15, da:0.0018+Math.random()*0.003,
-      r:3+Math.random()*5, sway:Math.random()*0.55,
+      rot:Math.random()*Math.PI*2, vrot:(Math.random()-.5)*0.08,
+      a:0.85+Math.random()*0.15, da:0.0015+Math.random()*0.0025,
+      r:4+Math.random()*6, sway:Math.random()*0.55,
       rc:208+Math.floor(Math.random()*47), gc:90+Math.floor(Math.random()*70), bc:128+Math.floor(Math.random()*55)
     };
   }
-  const si=setInterval(()=>{ if(petals.length<130){const p=mkPetal();if(p)petals.push(p);} },70); _bgTimers.push(si);
+  function drawSakuraPetal(x, y, r, rot, rc, gc, bc, alpha) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    for(let p=0; p<5; p++) {
+      ctx.save(); ctx.rotate((p/5)*Math.PI*2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(r*0.55, -r*0.15, r*0.9, -r*0.75, 0, -r);
+      ctx.bezierCurveTo(-r*0.9, -r*0.75, -r*0.55, -r*0.15, 0, 0);
+      const pg=ctx.createLinearGradient(0,0,0,-r);
+      pg.addColorStop(0,`rgba(${Math.min(255,rc+40)},${Math.min(255,gc+30)},${Math.min(255,bc+20)},${alpha})`);
+      pg.addColorStop(1,`rgba(${rc},${gc},${bc},${alpha*0.6})`);
+      ctx.fillStyle=pg; ctx.fill();
+      ctx.strokeStyle=`rgba(${rc-20},${Math.max(0,gc-15)},${bc},${alpha*0.4})`; ctx.lineWidth=0.5; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(0,0,r*0.18,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,220,200,${alpha})`; ctx.fill();
+    ctx.restore();
+  }
+  const si=setInterval(()=>{ if(petals.length<100){const p=mkPetal();if(p)petals.push(p);} },80); _bgTimers.push(si);
 
   let running=true;
   function animate() {
@@ -1450,10 +1581,7 @@ function startSakura() {
       const p=petals[i];
       p.x+=p.vx+Math.sin(p.rot*0.4)*p.sway;
       p.y+=p.vy; p.rot+=p.vrot; p.a-=p.da;
-      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-      ctx.beginPath(); ctx.ellipse(0,0,p.r,p.r*0.6,0,0,Math.PI*2);
-      ctx.fillStyle=`rgba(${p.rc},${p.gc},${p.bc},${Math.max(0,p.a)})`; ctx.fill();
-      ctx.restore();
+      if(p.a>0) drawSakuraPetal(p.x,p.y,p.r,p.rot,p.rc,p.gc,p.bc,Math.max(0,p.a));
       if(p.a<=0||p.y>H+30) petals.splice(i,1);
     }
     _bgRAFs.push(requestAnimationFrame(animate));
@@ -1481,19 +1609,20 @@ function startOcean() {
 
   // Waves
   const wc = document.getElementById('wave-canvas');
-  wc.width = window.innerWidth; wc.height = 120;
+  wc.width = window.innerWidth; wc.height = 200;
   const wctx = wc.getContext('2d');
   let wt = 0;
   function drawWave() {
     wctx.clearRect(0,0,wc.width,wc.height);
     [
-      {a:20, p:.015, o:.6, c:'rgba(0,136,255,.25)'},
-      {a:14, p:.02,  o:2,  c:'rgba(0,100,200,.2)'},
-      {a:10, p:.03,  o:4,  c:'rgba(0,60,150,.15)'}
+      {a:48, p:.012, o:.6,  sp:0.048, c:'rgba(0,160,255,.28)'},
+      {a:35, p:.018, o:2.2, sp:0.038, c:'rgba(0,120,220,.22)'},
+      {a:24, p:.025, o:4.1, sp:0.055, c:'rgba(0,70,170,.18)'}
     ].forEach(w => {
       wctx.beginPath();
-      for(let x=0;x<=wc.width;x+=4) {
-        const y = 60 + Math.sin(x*w.p + wt + w.o)*w.a;
+      const base = wc.height * 0.55;
+      for(let x=0;x<=wc.width;x+=3) {
+        const y = base + Math.sin(x*w.p + wt*w.sp*15 + w.o)*w.a + Math.sin(x*w.p*1.7+wt*w.sp*8)*w.a*0.35;
         x===0 ? wctx.moveTo(x,y) : wctx.lineTo(x,y);
       }
       wctx.lineTo(wc.width,wc.height); wctx.lineTo(0,wc.height); wctx.closePath();
@@ -1591,33 +1720,52 @@ function startWinter() {
   function mkFlake() {
     return {
       x: Math.random()*W, y: -10,
-      r: 1.5+Math.random()*5, speed: 0.5+Math.random()*2.5,
+      r: 2+Math.random()*6, speed: 0.5+Math.random()*2.5,
       drift: (Math.random()-.5)*0.8, rot: Math.random()*Math.PI*2,
-      vrot: (Math.random()-.5)*0.03, a: 0.5+Math.random()*.5,
-      arms: Math.random()>.5 ? 6 : 4
+      vrot: (Math.random()-.5)*0.025, a: 0.55+Math.random()*.45
     };
   }
   const flakes = Array.from({length:160}, () => { const f=mkFlake(); f.y=Math.random()*H; return f; });
   let running = true;
-  function drawFlake(x,y,r,rot,arms,a) {
-    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
-    ctx.strokeStyle=`rgba(200,230,255,${a})`; ctx.lineWidth=r*.25; ctx.lineCap='round';
-    for(let i=0;i<arms;i++) {
-      ctx.rotate(Math.PI*2/arms);
+  function drawFlake(x, y, r, rot, a) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    const col = `rgba(200,230,255,${a})`;
+    ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const w = Math.max(0.6, r * 0.11);
+    for (let i = 0; i < 6; i++) {
+      ctx.save(); ctx.rotate(i * Math.PI / 3);
+      ctx.lineWidth = w;
       ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-r); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0,-r*.5); ctx.lineTo(r*.25,-r*.65); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0,-r*.5); ctx.lineTo(-r*.25,-r*.65); ctx.stroke();
+      const b1 = r * 0.38, b2 = r * 0.62, b3 = r * 0.82;
+      const blen1 = r * 0.32, blen2 = r * 0.24, blen3 = r * 0.14;
+      for (const [by, bl] of [[b1, blen1],[b2, blen2],[b3, blen3]]) {
+        ctx.lineWidth = w * 0.8;
+        ctx.beginPath(); ctx.moveTo(0,-by); ctx.lineTo( bl*0.866,-by-bl*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,-by); ctx.lineTo(-bl*0.866,-by-bl*0.5); ctx.stroke();
+        if (bl > r*0.22) {
+          ctx.lineWidth = w * 0.55;
+          const sl = bl * 0.42;
+          ctx.beginPath(); ctx.moveTo( bl*0.866*0.6,-by-bl*0.5*0.6); ctx.lineTo( bl*0.866*0.6+sl*0.5,-by-bl*0.5*0.6-sl*0.866); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-bl*0.866*0.6,-by-bl*0.5*0.6); ctx.lineTo(-bl*0.866*0.6-sl*0.5,-by-bl*0.5*0.6-sl*0.866); ctx.stroke();
+        }
+      }
+      ctx.restore();
     }
+    ctx.beginPath(); ctx.arc(0,0,r*0.1,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.fill();
     ctx.restore();
   }
   function draw() {
     if (!running) return;
-    ctx.fillStyle='rgba(5,13,26,0.12)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(5,13,26,0.13)'; ctx.fillRect(0,0,W,H);
     flakes.forEach((f,i) => {
-      f.y += f.speed; f.x += f.drift + Math.sin(f.y*.01+i)*.3; f.rot += f.vrot;
+      f.y += f.speed; f.x += f.drift + Math.sin(f.y*.012+i)*.4; f.rot += f.vrot;
       if (f.y > H+10) Object.assign(flakes[i], mkFlake());
-      if (f.r > 3) drawFlake(f.x,f.y,f.r,f.rot,f.arms,f.a);
-      else { ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fillStyle=`rgba(200,230,255,${f.a})`; ctx.fill(); }
+      if (f.r >= 3.5) drawFlake(f.x,f.y,f.r,f.rot,f.a);
+      else {
+        ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(200,230,255,${f.a})`; ctx.fill();
+      }
     });
     _bgRAFs.push(requestAnimationFrame(draw));
   }
@@ -1700,6 +1848,33 @@ function startAutumn() {
   const leaves = Array.from({length:80}, () => { const l=mkLeaf(); l.y=Math.random()*H; return l; });
   let t = 0;
   let running = true;
+  function drawLeaf(l) {
+    const r = l.rx;
+    const g = ctx.createLinearGradient(0, -r, 0, r*0.5);
+    g.addColorStop(0,`rgba(${Math.min(255,l.col[0]+40)},${Math.min(255,l.col[1]+30)},${Math.min(255,l.col[2]+10)},${l.a})`);
+    g.addColorStop(0.5,`rgba(${l.col[0]},${l.col[1]},${l.col[2]},${l.a})`);
+    g.addColorStop(1,`rgba(${Math.max(0,l.col[0]-20)},${Math.max(0,l.col[1]-10)},${l.col[2]},${l.a*0.8})`);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.moveTo(0, r*0.45);
+    ctx.bezierCurveTo(-r*0.12, r*0.2, -r*0.55, 0.0, -r*0.75, -r*0.22);
+    ctx.bezierCurveTo(-r*0.85, -r*0.42, -r*0.65, -r*0.62, -r*0.32, -r*0.52);
+    ctx.bezierCurveTo(-r*0.52, -r*0.82, -r*0.22, -r*0.92, 0, -r);
+    ctx.bezierCurveTo(r*0.22, -r*0.92, r*0.52, -r*0.82, r*0.32, -r*0.52);
+    ctx.bezierCurveTo(r*0.65, -r*0.62, r*0.85, -r*0.42, r*0.75, -r*0.22);
+    ctx.bezierCurveTo(r*0.55, 0.0, r*0.12, r*0.2, 0, r*0.45);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=`rgba(${Math.max(0,l.col[0]-40)},${Math.max(0,l.col[1]-25)},${l.col[2]},${l.a*0.4})`;
+    ctx.lineWidth=0.6;
+    ctx.beginPath(); ctx.moveTo(0, r*0.45); ctx.lineTo(0, -r*0.88); ctx.stroke();
+    [[0,-r*0.28],[0,-r*0.5],[0,-r*0.68]].forEach(([sx,sy])=>{
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+r*0.28,sy-r*0.15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-r*0.28,sy-r*0.15); ctx.stroke();
+    });
+    ctx.beginPath(); ctx.moveTo(0,r*0.45); ctx.lineTo(0,r*0.85);
+    ctx.strokeStyle=`rgba(${Math.max(0,l.col[0]-50)},${Math.max(0,l.col[1]-30)},${l.col[2]},${l.a*0.7})`;
+    ctx.lineWidth=1.2; ctx.stroke();
+  }
   function draw() {
     if (!running) return;
     ctx.fillStyle='rgba(16,8,0,0.1)'; ctx.fillRect(0,0,W,H);
@@ -1707,13 +1882,7 @@ function startAutumn() {
       l.y += l.vy; l.x += l.vx + Math.sin(t*.015+l.swayPhase)*l.sway; l.rot += l.vrot;
       if (l.y > H+30) Object.assign(leaves[i], mkLeaf());
       ctx.save(); ctx.translate(l.x,l.y); ctx.rotate(l.rot);
-      const g = ctx.createRadialGradient(0,-l.ry*.2,0,0,0,l.rx);
-      g.addColorStop(0,`rgba(${l.col[0]+30},${l.col[1]+20},${l.col[2]+10},${l.a})`);
-      g.addColorStop(1,`rgba(${l.col[0]},${l.col[1]},${l.col[2]},${l.a*.7})`);
-      ctx.fillStyle=g;
-      ctx.beginPath(); ctx.ellipse(0,0,l.rx,l.ry,0,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle=`rgba(${l.col[0]-30},${l.col[1]-20},${l.col[2]},${l.a*.5})`;
-      ctx.lineWidth=.5; ctx.beginPath(); ctx.moveTo(0,-l.ry); ctx.lineTo(0,l.ry); ctx.stroke();
+      drawLeaf(l);
       ctx.restore();
     });
     t++;
@@ -1789,19 +1958,190 @@ function startCrystals() {
   _bgTimers.push({_stop:()=>{running=false;}});
 }
 
+// ══ SHOP TABS ══
+function switchShopTab(tab) {
+  ['upgrades','items','promos'].forEach(t => {
+    document.getElementById(`shop-tab-${t}`).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.shop-tab').forEach(b => b.classList.remove('active'));
+  const tb = document.getElementById(`stab-${tab}`);
+  if (tb) tb.classList.add('active');
+  const subtitles = {upgrades:'Улучшения кликера', items:'Магазин предметов', promos:'Активные акции'};
+  const sub = document.getElementById('shop-subtitle');
+  if (sub) sub.textContent = subtitles[tab] || '';
+  if (tab === 'items') renderItemsShop();
+  if (tab === 'promos') loadPromos();
+}
+
+// ══ ITEMS SHOP ══
+const SHOP_ITEMS = [
+  {id:'boom',   name:'💥 Взрыв',     desc:'Взрыв частиц при клике',      price:2000},
+  {id:'stars',  name:'⭐ Звёзды',    desc:'Золотые звёзды при клике',     price:2500},
+  {id:'fire',   name:'🔥 Огонь',     desc:'Огненные частицы при клике',   price:3000},
+  {id:'ice',    name:'❄️ Лёд',      desc:'Ледяные кристаллы при клике',  price:3000},
+  {id:'spark',  name:'✨ Искры',     desc:'Радужные искры при клике',     price:3500},
+  {id:'ring',   name:'🌈 Кольцо',   desc:'Радужное кольцо вокруг кнопки',price:4000},
+  {id:'crown',  name:'👑 Корона',   desc:'Золотая корона над кнопкой',   price:5000},
+  {id:'glow',   name:'💫 Ореол',    desc:'Мерцающий ореол вокруг кнопки',price:2000},
+];
+const ownedItems   = new Set(JSON.parse(localStorage.getItem('ownedItems') || '[]'));
+let equippedItem   = localStorage.getItem('equippedItem') || null;
+
+function renderItemsShop() {
+  const c = document.getElementById('items-list');
+  c.innerHTML = SHOP_ITEMS.map(item => {
+    const owned    = ownedItems.has(item.id);
+    const equipped = equippedItem === item.id;
+    let badge = '';
+    if (equipped) badge = `<span class="item-badge item-badge-equip">Надет</span>`;
+    else if (owned) badge = `<span class="item-badge item-badge-owned">Есть</span>`;
+    let btn = '';
+    if (!owned) btn = `<button class="btn btn-primary btn-sm" style="width:100%" onclick="buyItem('${item.id}',${item.price})">💰 ${item.price.toLocaleString('ru')}</button>`;
+    else if (!equipped) btn = `<button class="btn btn-success btn-sm" style="width:100%" onclick="equipItem('${item.id}')">Надеть</button>`;
+    else btn = `<button class="btn btn-outline btn-sm" style="width:100%" onclick="unequipItem()">Снять</button>`;
+    return `<div class="item-card ${owned?'owned':''} ${equipped?'equipped':''}">
+      ${badge}
+      <div class="item-icon">${item.name.split(' ')[0]}</div>
+      <div class="item-name">${item.name.substring(item.name.indexOf(' ')+1)}</div>
+      <div class="item-desc">${item.desc}</div>
+      ${btn}
+    </div>`;
+  }).join('');
+}
+
+async function buyItem(id, price) {
+  if (!S.user) return;
+  if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error'); return; }
+  S.balance -= price;
+  pendingClicks = Math.max(0, pendingClicks - price);
+  ownedItems.add(id);
+  localStorage.setItem('ownedItems', JSON.stringify([...ownedItems]));
+  equippedItem = id;
+  localStorage.setItem('equippedItem', id);
+  applyItemEffect(id);
+  updateBalanceUI();
+  await flushClicks();
+  showToast(`✅ ${SHOP_ITEMS.find(x=>x.id===id)?.name} куплено!`, 'success');
+  renderItemsShop();
+}
+
+function equipItem(id) {
+  equippedItem = id;
+  localStorage.setItem('equippedItem', id);
+  applyItemEffect(id);
+  renderItemsShop();
+  showToast('✅ Предмет надет!', 'success');
+}
+
+function unequipItem() {
+  equippedItem = null;
+  localStorage.removeItem('equippedItem');
+  applyItemEffect(null);
+  renderItemsShop();
+}
+
+function applyItemEffect(id) {
+  const btn = document.getElementById('click-btn');
+  btn.classList.remove('item-ring','item-crown','item-glow');
+  if (id === 'ring')  btn.classList.add('item-ring');
+  if (id === 'crown') btn.classList.add('item-crown');
+  if (id === 'glow')  btn.classList.add('item-glow');
+}
+
+function spawnClickEffect(x, y) {
+  if (!equippedItem) return;
+  const effects = {
+    boom:  spawnBoom,
+    stars: spawnStars,
+    fire:  spawnFire,
+    ice:   spawnIce,
+    spark: spawnSpark,
+  };
+  if (effects[equippedItem]) effects[equippedItem](x, y);
+}
+
+function spawnParticles(x, y, configs) {
+  configs.forEach(cfg => {
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:${cfg.size}px;height:${cfg.size}px;border-radius:50%;background:${cfg.color};pointer-events:none;z-index:9999;transform:translate(-50%,-50%)`;
+    document.body.appendChild(el);
+    const angle = cfg.angle * Math.PI / 180;
+    const speed = cfg.speed || 60;
+    let px = x, py = y, life = 1;
+    const anim = () => {
+      life -= 0.04; px += Math.cos(angle)*speed*0.04; py += Math.sin(angle)*speed*0.04 + 1;
+      el.style.left = px+'px'; el.style.top = py+'px'; el.style.opacity = life;
+      if (life > 0) requestAnimationFrame(anim); else el.remove();
+    };
+    requestAnimationFrame(anim);
+  });
+}
+
+function spawnBoom(x, y) {
+  for (let i=0; i<12; i++) spawnParticles(x, y, [{size:6+Math.random()*6, color:`hsl(${Math.random()*360},100%,65%)`, angle:i*30, speed:80+Math.random()*60}]);
+}
+function spawnStars(x, y) {
+  for (let i=0; i<8; i++) spawnParticles(x, y, [{size:5+Math.random()*4, color:'#FFD700', angle:Math.random()*360, speed:60+Math.random()*40}]);
+}
+function spawnFire(x, y) {
+  for (let i=0; i<10; i++) spawnParticles(x, y, [{size:5+Math.random()*5, color:`rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*120)},0,0.9)`, angle:-90+(Math.random()-0.5)*80, speed:50+Math.random()*50}]);
+}
+function spawnIce(x, y) {
+  for (let i=0; i<8; i++) spawnParticles(x, y, [{size:4+Math.random()*4, color:`rgba(${100+Math.floor(Math.random()*100)},220,255,0.9)`, angle:i*45+Math.random()*20, speed:50+Math.random()*40}]);
+}
+function spawnSpark(x, y) {
+  for (let i=0; i<14; i++) spawnParticles(x, y, [{size:3+Math.random()*3, color:`hsl(${200+Math.random()*160},100%,70%)`, angle:i*25.7, speed:70+Math.random()*70}]);
+}
+
+// ══ PROMOTIONS ══
+async function loadPromos() {
+  const c = document.getElementById('promos-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const list = await fetch('/api/promotions').then(r=>r.json());
+    if (!list.length) {
+      c.innerHTML = '<div class="empty"><div class="empty-icon">🎉</div>Акций пока нет</div>';
+      return;
+    }
+    const typeColors = {click_mult:'promo-card-fire', vpn_disc:'promo-card-blue', auto_mult:'promo-card-gold'};
+    const typeLabels = {click_mult:'×', vpn_disc:'−', auto_mult:'×'};
+    const typeSuffix = {click_mult:' к кликам', vpn_disc:'% на VPN', auto_mult:' к авто-кликам'};
+    c.innerHTML = list.map(p => {
+      const colorClass = typeColors[p.promo_type] || 'promo-card-green';
+      const label = typeLabels[p.promo_type] || '';
+      const suffix = typeSuffix[p.promo_type] || '';
+      const endDate = new Date(p.end_at);
+      const msLeft = endDate - Date.now();
+      const hours = Math.floor(msLeft/3600000);
+      const mins  = Math.floor((msLeft%3600000)/60000);
+      const timeStr = msLeft > 86400000 ? `${Math.floor(msLeft/86400000)}д ${hours%24}ч` : `${hours}ч ${mins}м`;
+      return `<div class="promo-card ${colorClass}">
+        <div class="promo-icon">${p.icon}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${p.title}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${p.description||''}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:4px">${label}${p.value}${suffix}</div>
+          <div class="promo-timer">⏱ Осталось: ${timeStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>Ошибка загрузки</div>'; }
+}
+
 // ══ ADMIN ══
 let curAdminTab = 'vpn';
 function switchAdminTab(tab) {
   curAdminTab = tab;
-  ['vpn','upgrades','users','balance'].forEach(t => {
+  ['vpn','upgrades','users','balance','promos'].forEach(t => {
     document.getElementById(`admin-tab-${t}`).style.display = t===tab?'block':'none';
   });
   document.querySelectorAll('.admin-tab').forEach((b,i) => {
-    b.classList.toggle('active', ['vpn','upgrades','users','balance'][i]===tab);
+    b.classList.toggle('active', ['vpn','upgrades','users','balance','promos'][i]===tab);
   });
   if (tab==='vpn')      loadAdminVPN();
   if (tab==='upgrades') loadAdminUpgrades();
   if (tab==='users')    loadAdminUsers();
+  if (tab==='promos')   loadAdminPromos();
 }
 
 async function loadAdminVPN() {
@@ -2046,6 +2386,78 @@ async function adminSetPremium(val) {
   if (!tgId) { showToast('❌ Укажи ID','error'); return; }
   const data = await fetch('/api/admin/setpremium',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,target_telegram_id:tgId,is_premium:val})}).then(r=>r.json());
   if (data.ok) showToast(val?'✅ Premium выдан':'✅ Premium снят','success');
+  else showToast(`❌ ${data.error}`,'error');
+}
+
+// ══ ADMIN PROMOTIONS ══
+async function loadAdminPromos() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-promos-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const list = await fetch(`/api/admin/promotions/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🎉</div>Акций нет</div>'; return; }
+    const typeLabels = {click_mult:'×N к кликам', vpn_disc:'−N% VPN', auto_mult:'×N авто'};
+    c.innerHTML = list.map(p => {
+      const st = p.is_active ? '<span class="tag tag-green">Вкл.</span>' : '<span class="tag tag-red">Выкл.</span>';
+      const endDate = new Date(p.end_at);
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="card-title">${p.icon} ${p.title}</div>${st}
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin:4px 0">${p.description||''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-yellow">${typeLabels[p.promo_type]?.replace('N',p.value)||p.promo_type}</span>
+          <span class="tag tag-blue">До ${endDate.toLocaleDateString('ru')} ${endDate.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div class="admin-card-btns">
+          <button class="btn btn-sm ${p.is_active?'btn-danger':'btn-success'}" style="flex:1" onclick="adminTogglePromo(${p.id})">${p.is_active?'❌ Выкл.':'✅ Вкл.'}</button>
+          <button class="btn btn-sm btn-del" onclick="adminDeletePromo(${p.id})">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function openAddPromoModal() {
+  ['promo-add-title','promo-add-desc','promo-add-value','promo-add-endat'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('promo-add-icon').value = '🎉';
+  document.getElementById('promo-add-type').value = 'click_mult';
+  openModal('modal-add-promo');
+}
+
+async function submitPromoForm() {
+  if (!S.user) return;
+  const title  = document.getElementById('promo-add-title').value.trim();
+  const value  = parseFloat(document.getElementById('promo-add-value').value);
+  const end_at = document.getElementById('promo-add-endat').value;
+  if (!title || isNaN(value) || !end_at) { showToast('❌ Заполни обязательные поля','error'); return; }
+  const body = {
+    admin_telegram_id: S.user.telegram_id,
+    title,
+    description: document.getElementById('promo-add-desc').value.trim(),
+    icon: document.getElementById('promo-add-icon').value.trim() || '🎉',
+    promo_type: document.getElementById('promo-add-type').value,
+    value,
+    end_at
+  };
+  try {
+    const data = await fetch('/api/admin/promotions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if (data.ok) { closeModal('modal-add-promo'); showToast('✅ Акция создана','success'); loadAdminPromos(); }
+    else showToast('❌ Ошибка','error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
+}
+
+async function adminTogglePromo(id) {
+  if (!S.user) return;
+  await fetch('/api/admin/promotions/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,promo_id:id})});
+  loadAdminPromos();
+}
+
+async function adminDeletePromo(id) {
+  if (!S.user || !confirm('Удалить акцию?')) return;
+  const data = await fetch('/api/admin/promotions/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,promo_id:id})}).then(r=>r.json());
+  if (data.ok) { showToast('✅ Удалено','success'); loadAdminPromos(); }
   else showToast(`❌ ${data.error}`,'error');
 }
 

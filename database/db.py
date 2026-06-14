@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy import select, delete
 from datetime import datetime, timedelta
 from config import DATABASE_URL, ADMIN_IDS
-from database.models import Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase
+from database.models import Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase, Promotion
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -176,7 +176,7 @@ async def buy_upgrade(telegram_id: int, upgrade_id: int) -> dict:
         if existing.scalar_one_or_none():
             return {"ok": False, "error": "Уже куплено"}
 
-        if user.balance < upgrade.price:
+        if int(user.balance) < int(upgrade.price):
             return {"ok": False, "error": f"Нужно {int(upgrade.price)} кликов, у вас {int(user.balance)}"}
 
         user.balance -= upgrade.price
@@ -448,3 +448,64 @@ async def admin_delete_upgrade(upgrade_id: int) -> dict:
         await session.delete(upg)
         await session.commit()
         return {"ok": True}
+
+
+async def get_active_promotions() -> list:
+    async with async_session() as session:
+        now = datetime.utcnow()
+        result = await session.execute(
+            select(Promotion).where(
+                Promotion.is_active == True,
+                Promotion.end_at > now
+            ).order_by(Promotion.created_at.desc())
+        )
+        return result.scalars().all()
+
+
+async def get_all_promotions() -> list:
+    async with async_session() as session:
+        result = await session.execute(select(Promotion).order_by(Promotion.created_at.desc()))
+        return result.scalars().all()
+
+
+async def add_promotion(title: str, description: str, icon: str, promo_type: str, value: float, end_at: datetime) -> Promotion:
+    async with async_session() as session:
+        promo = Promotion(title=title, description=description, icon=icon, promo_type=promo_type, value=value, end_at=end_at)
+        session.add(promo)
+        await session.commit()
+        await session.refresh(promo)
+        return promo
+
+
+async def delete_promotion(promo_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(Promotion).where(Promotion.id == promo_id))
+        promo = result.scalar_one_or_none()
+        if not promo:
+            return {"ok": False, "error": "Не найдена"}
+        await session.delete(promo)
+        await session.commit()
+        return {"ok": True}
+
+
+async def toggle_promotion(promo_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(Promotion).where(Promotion.id == promo_id))
+        promo = result.scalar_one_or_none()
+        if not promo:
+            return {"ok": False}
+        promo.is_active = not promo.is_active
+        await session.commit()
+        return {"ok": True, "is_active": promo.is_active}
+
+
+async def get_click_multiplier() -> float:
+    promos = await get_active_promotions()
+    mults = [p.value for p in promos if p.promo_type == "click_mult"]
+    return max(mults) if mults else 1.0
+
+
+async def get_vpn_promo_discount() -> float:
+    promos = await get_active_promotions()
+    discs = [p.value for p in promos if p.promo_type == "vpn_disc"]
+    return max(discs) if discs else 0.0

@@ -97,3 +97,17 @@ class VPNPurchase(Base):
 
     user = relationship("User", back_populates="vpn_purchases")
     vpn_config = relationship("VPNConfig", back_populates="purchases")
+
+
+class Promotion(Base):
+    __tablename__ = "promotions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(10), default="🎉", nullable=False)
+    promo_type = Column(String(20), default="click_mult", nullable=False)
+    value = Column(Float, default=2.0, nullable=False)
+    end_at = Column(DateTime, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

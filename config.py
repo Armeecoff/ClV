@@ -15,4 +15,4 @@ DATABASE_URL = _db_url
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:8000")
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme_secret_key_123")
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "5000"))

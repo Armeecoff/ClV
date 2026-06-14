@@ -14,7 +14,9 @@ from database.db import (
     edit_vpn_config, delete_vpn_config, toggle_vpn_active,
     get_all_users, set_admin, set_premium, get_user_by_telegram_id,
     admin_add_upgrade, admin_edit_upgrade, admin_delete_upgrade,
-    delete_user, buy_premium_subscription
+    delete_user, buy_premium_subscription,
+    get_active_promotions, get_all_promotions, add_promotion,
+    delete_promotion, toggle_promotion
 )
 from config import ADMIN_IDS
 
@@ -367,3 +369,72 @@ class UserDelete(BaseModel):
 async def admin_delete_user(data: UserDelete):
     await require_admin(data.admin_telegram_id)
     return await delete_user(data.target_telegram_id)
+
+
+@app.get("/api/promotions")
+async def list_promotions():
+    promos = await get_active_promotions()
+    return [
+        {
+            "id": p.id, "title": p.title, "description": p.description,
+            "icon": p.icon, "promo_type": p.promo_type, "value": p.value,
+            "end_at": p.end_at.isoformat(), "is_active": p.is_active
+        }
+        for p in promos
+    ]
+
+
+class PromoCreate(BaseModel):
+    admin_telegram_id: int
+    title: str
+    description: str = ""
+    icon: str = "🎉"
+    promo_type: str = "click_mult"
+    value: float = 2.0
+    end_at: str
+
+
+@app.post("/api/admin/promotions")
+async def admin_add_promo(data: PromoCreate):
+    await require_admin(data.admin_telegram_id)
+    try:
+        end_at = datetime.fromisoformat(data.end_at)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Неверный формат даты")
+    promo = await add_promotion(
+        title=data.title, description=data.description, icon=data.icon,
+        promo_type=data.promo_type, value=data.value, end_at=end_at
+    )
+    return {"ok": True, "id": promo.id}
+
+
+@app.get("/api/admin/promotions/{telegram_id}")
+async def admin_list_promos(telegram_id: int):
+    await require_admin(telegram_id)
+    promos = await get_all_promotions()
+    return [
+        {
+            "id": p.id, "title": p.title, "description": p.description,
+            "icon": p.icon, "promo_type": p.promo_type, "value": p.value,
+            "end_at": p.end_at.isoformat(), "is_active": p.is_active,
+            "created_at": p.created_at.isoformat()
+        }
+        for p in promos
+    ]
+
+
+class PromoAction(BaseModel):
+    admin_telegram_id: int
+    promo_id: int
+
+
+@app.post("/api/admin/promotions/delete")
+async def admin_delete_promo(data: PromoAction):
+    await require_admin(data.admin_telegram_id)
+    return await delete_promotion(data.promo_id)
+
+
+@app.post("/api/admin/promotions/toggle")
+async def admin_toggle_promo(data: PromoAction):
+    await require_admin(data.admin_telegram_id)
+    return await toggle_promotion(data.promo_id)
