@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Clicker Bot</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0f0f1a;
+    --bg2: #16162a;
+    --bg3: #1e1e35;
+    --accent: #7c6cf7;
+    --accent2: #a89ef8;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --card: #1e1e35;
+    --border: #2d2d50;
+    --nav-h: 70px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* PAGES */
+  .page { display: none; flex-direction: column; min-height: calc(100vh - var(--nav-h)); padding: 16px 16px calc(var(--nav-h) + 16px); }
+  .page.active { display: flex; }
+
+  /* NAV */
+  .nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h); background: var(--bg2); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all .2s; color: var(--text2); border: none; background: none; font-size: 11px; font-weight: 500; }
+  .nav-btn.active { color: var(--accent2); }
+  .nav-btn .icon { font-size: 22px; }
+  .nav-btn.active .icon { filter: drop-shadow(0 0 6px var(--accent)); }
+
+  /* HEADER */
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: var(--accent2); }
+  .header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* BALANCE BAR */
+  .balance-bar { background: linear-gradient(135deg, var(--bg3), var(--bg2)); border: 1px solid var(--border); border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .balance-info { display: flex; flex-direction: column; }
+  .balance-label { font-size: 12px; color: var(--text2); }
+  .balance-value { font-size: 26px; font-weight: 800; color: var(--yellow); line-height: 1.1; }
+  .cpc-badge { background: var(--accent); border-radius: 10px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+
+  /* CLICKER */
+  .clicker-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 20px; }
+  .click-btn { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #9d8fff, #5c4ef5 60%, #3b2fc9); border: 4px solid var(--accent2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 80px; box-shadow: 0 0 40px rgba(124,108,247,.4), 0 8px 32px rgba(0,0,0,.5); transition: transform .08s, box-shadow .08s; user-select: none; -webkit-user-select: none; position: relative; overflow: visible; }
+  .click-btn:active { transform: scale(.92); box-shadow: 0 0 20px rgba(124,108,247,.3); }
+  .click-hint { color: var(--text2); font-size: 14px; font-weight: 500; }
+  .float-text { position: fixed; pointer-events: none; font-weight: 800; font-size: 22px; color: var(--yellow); text-shadow: 0 2px 8px rgba(0,0,0,.5); animation: floatUp .8s ease-out forwards; z-index: 999; }
+  @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.3); } }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .card-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+  .card-row { display: flex; align-items: center; justify-content: space-between; }
+  .price-tag { font-size: 14px; font-weight: 700; color: var(--yellow); }
+  .bonus-tag { font-size: 12px; color: var(--green); }
+
+  /* BUTTONS */
+  .btn { border: none; border-radius: 12px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5c4ef5); color: #fff; }
+  .btn-primary:active { transform: scale(.95); opacity: .9; }
+  .btn-primary:disabled { background: var(--bg3); color: var(--text2); cursor: not-allowed; }
+  .btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; }
+  .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+  .btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 10px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+
+  /* TAGS */
+  .tag { display: inline-block; border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .tag-green { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+  .tag-red { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+  .tag-yellow { background: rgba(251,191,36,.15); color: var(--yellow); border: 1px solid rgba(251,191,36,.3); }
+  .tag-blue { background: rgba(124,108,247,.15); color: var(--accent2); border: 1px solid rgba(124,108,247,.3); }
+
+  /* PROFILE */
+  .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #5c4ef5); display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 16px; }
+  .profile-name { font-size: 20px; font-weight: 700; text-align: center; }
+  .profile-id { font-size: 13px; color: var(--text2); text-align: center; margin-top: 4px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .stat-card { background: var(--bg3); border-radius: 12px; padding: 12px; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 800; color: var(--accent2); }
+  .stat-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--bg2); border-radius: 24px 24px 0 0; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color .2s; }
+  .form-input:focus { border-color: var(--accent); }
+  textarea.form-input { min-height: 80px; resize: vertical; }
+
+  /* LOADER */
+  .loader { display: flex; align-items: center; justify-content: center; min-height: 100px; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 40px 20px; color: var(--text2); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* TOAST */
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 14px; font-weight: 500; z-index: 999; transition: transform .3s cubic-bezier(.4,0,.2,1); max-width: 90vw; text-align: center; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  /* ADMIN NAV */
+  .admin-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .admin-tab { flex: 1; min-width: 80px; text-align: center; border: none; border-radius: 10px; padding: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--bg3); color: var(--text2); transition: all .2s; }
+  .admin-tab.active { background: var(--accent); color: #fff; }
+
+  /* PURCHASE CARD */
+  .purchase-card { background: var(--bg3); border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .purchase-name { font-weight: 700; margin-bottom: 4px; }
+  .purchase-meta { font-size: 12px; color: var(--text2); }
+
+  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--accent2); }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .user-info { font-size: 13px; }
+  .user-name { font-weight: 600; }
+  .user-meta { font-size: 11px; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<!-- PAGES -->
+<div id="page-clicker" class="page active">
+  <div class="header">
+    <h1>🖱 Кликер</h1>
+    <p id="click-total-label">Всего кликов: 0</p>
+  </div>
+  <div class="balance-bar">
+    <div class="balance-info">
+      <span class="balance-label">💰 Баланс</span>
+      <span class="balance-value" id="balance-display">0</span>
+    </div>
+    <span class="cpc-badge" id="cpc-display">+1 / клик</span>
+  </div>
+  <div class="clicker-wrap">
+    <button class="click-btn" id="click-btn">💎</button>
+    <div class="click-hint">Тапай по кнопке!</div>
+  </div>
+</div>
+
+<div id="page-shop" class="page">
+  <div class="header">
+    <h1>🛒 Магазин улучшений</h1>
+    <p>Покупай улучшения кликера</p>
+  </div>
+  <div class="balance-bar">
+    <div class="balance-info">
+      <span class="balance-label">💰 Баланс</span>
+      <span class="balance-value" id="shop-balance">0</span>
+    </div>
+    <span class="cpc-badge" id="shop-cpc">+1 / клик</span>
+  </div>
+  <div id="upgrades-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="page-vpn" class="page">
+  <div class="header">
+    <h1>🔐 VPN Магазин</h1>
+    <p>Купи VPN за клики</p>
+  </div>
+  <div class="balance-bar">
+    <div class="balance-info">
+      <span class="balance-label">💰 Баланс</span>
+      <span class="balance-value" id="vpn-balance">0</span>
+    </div>
+    <span class="tag tag-blue">Платишь кликами</span>
+  </div>
+  <div id="vpn-list">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="page-profile" class="page">
+  <div class="header"><h1>👤 Профиль</h1></div>
+  <div class="profile-avatar">👤</div>
+  <div class="profile-name" id="profile-name">Загрузка...</div>
+  <div class="profile-id" id="profile-id">ID: —</div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-val" id="stat-balance">0</div>
+      <div class="stat-lbl">💰 Баланс</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-clicks">0</div>
+      <div class="stat-lbl">🖱 Всего кликов</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-cpc">1</div>
+      <div class="stat-lbl">⚡ Кликов/тап</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-vpn-count">0</div>
+      <div class="stat-lbl">🔐 VPN куплено</div>
+    </div>
+  </div>
+
+  <div class="section-title">История покупок VPN</div>
+  <div id="vpn-history">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="page-admin" class="page">
+  <div class="header"><h1>🛠 Админ-панель</h1></div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('vpn')">VPN</button>
+    <button class="admin-tab" onclick="switchAdminTab('users')">Юзеры</button>
+    <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
+  </div>
+
+  <!-- VPN Tab -->
+  <div id="admin-tab-vpn">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="openAddVpnModal()">➕ Добавить VPN конфиг</button>
+    <div class="section-title">Все конфиги</div>
+    <div id="admin-vpn-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
+  <!-- Users Tab -->
+  <div id="admin-tab-users" style="display:none">
+    <div class="section-title">Все пользователи</div>
+    <div id="admin-users-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
+  <!-- Balance Tab -->
+  <div id="admin-tab-balance" style="display:none">
+    <div class="section-title">Управление балансом</div>
+    <div class="form-group">
+      <label class="form-label">Telegram ID пользователя</label>
+      <input type="number" class="form-input" id="bal-tg-id" placeholder="123456789">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Сумма (отрицательная — снять)</label>
+      <input type="number" class="form-input" id="bal-amount" placeholder="100 или -100">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" style="flex:1" onclick="adminAdjustBalance(1)">➕ Пополнить</button>
+      <button class="btn btn-danger" style="flex:1" onclick="adminAdjustBalance(-1)">➖ Снять</button>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title">Управление правами</div>
+    <div class="form-group">
+      <label class="form-label">Telegram ID пользователя</label>
+      <input type="number" class="form-input" id="admin-tg-id" placeholder="123456789">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="adminSetAdmin(true)">👑 Выдать права</button>
+      <button class="btn btn-danger" style="flex:1" onclick="adminSetAdmin(false)">❌ Снять права</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="navigate('clicker')" id="nav-clicker">
+    <span class="icon">🖱</span><span>Кликер</span>
+  </button>
+  <button class="nav-btn" onclick="navigate('shop')" id="nav-shop">
+    <span class="icon">🛒</span><span>Магазин</span>
+  </button>
+  <button class="nav-btn" onclick="navigate('vpn')" id="nav-vpn">
+    <span class="icon">🔐</span><span>VPN</span>
+  </button>
+  <button class="nav-btn" onclick="navigate('profile')" id="nav-profile">
+    <span class="icon">👤</span><span>Профиль</span>
+  </button>
+  <button class="nav-btn" onclick="navigate('admin')" id="nav-admin" style="display:none">
+    <span class="icon">🛠</span><span>Админ</span>
+  </button>
+</nav>
+
+<!-- MODAL: VPN Details -->
+<div class="modal-overlay" id="modal-vpn">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-vpn-title">VPN Конфиг</div>
+    <div id="modal-vpn-body"></div>
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-vpn')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" id="modal-vpn-buy-btn">Купить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add VPN -->
+<div class="modal-overlay" id="modal-add-vpn">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ Добавить VPN конфиг</div>
+    <div class="form-group">
+      <label class="form-label">Название *</label>
+      <input class="form-input" id="vpn-add-name" placeholder="Например: Европа Pro">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Описание</label>
+      <textarea class="form-input" id="vpn-add-desc" placeholder="Описание конфига..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Конфиг / ключ VPN *</label>
+      <textarea class="form-input" id="vpn-add-config" placeholder="Вставьте конфиг или ключ..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цена в кликах *</label>
+      <input class="form-input" type="number" id="vpn-add-price" placeholder="1000">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Срок действия (дней) *</label>
+      <input class="form-input" type="number" id="vpn-add-duration" placeholder="30">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Количество в наличии *</label>
+      <input class="form-input" type="number" id="vpn-add-qty" placeholder="10">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Доступен до (ГГГГ-ММ-ДД, пусто = бессрочно)</label>
+      <input class="form-input" type="date" id="vpn-add-until">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-vpn')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitAddVpn()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.setHeaderColor('#0f0f1a');
+  tg.setBackgroundColor('#0f0f1a');
+}
+
+let state = {
+  user: null,
+  balance: 0,
+  totalClicks: 0,
+  cpc: 1,
+  page: 'clicker'
+};
+
+// Init
+async function init() {
+  let tgId = null, username = null, firstName = null;
+  if (tg && tg.initDataUnsafe?.user) {
+    const u = tg.initDataUnsafe.user;
+    tgId = u.id;
+    username = u.username;
+    firstName = u.first_name;
+  } else {
+    // Dev fallback
+    tgId = 100000001;
+    firstName = 'Test User';
+  }
+
+  try {
+    const params = new URLSearchParams({ username: username || '', first_name: firstName || '' });
+    const res = await fetch(`/api/user/${tgId}?${params}`);
+    const data = await res.json();
+    state.user = data;
+    state.balance = data.balance;
+    state.totalClicks = data.total_clicks;
+    state.cpc = data.clicks_per_click;
+
+    updateBalanceUI();
+
+    if (data.is_admin) {
+      document.getElementById('nav-admin').style.display = 'flex';
+    }
+
+    // Profile
+    document.getElementById('profile-name').textContent = firstName || username || 'Пользователь';
+    document.getElementById('profile-id').textContent = `ID: ${tgId}`;
+  } catch(e) {
+    showToast('Ошибка загрузки профиля', 'error');
+  }
+}
+
+function updateBalanceUI() {
+  const b = Math.floor(state.balance);
+  document.getElementById('balance-display').textContent = b.toLocaleString('ru');
+  document.getElementById('shop-balance').textContent = b.toLocaleString('ru');
+  document.getElementById('vpn-balance').textContent = b.toLocaleString('ru');
+  document.getElementById('cpc-display').textContent = `+${state.cpc} / клик`;
+  document.getElementById('shop-cpc').textContent = `+${state.cpc} / клик`;
+  document.getElementById('click-total-label').textContent = `Всего кликов: ${state.totalClicks.toLocaleString('ru')}`;
+
+  // Stats
+  document.getElementById('stat-balance').textContent = b.toLocaleString('ru');
+  document.getElementById('stat-clicks').textContent = state.totalClicks.toLocaleString('ru');
+  document.getElementById('stat-cpc').textContent = state.cpc;
+}
+
+// NAVIGATION
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.getElementById(`nav-${page}`).classList.add('active');
+  state.page = page;
+
+  if (page === 'shop') loadUpgrades();
+  if (page === 'vpn') loadVPN();
+  if (page === 'profile') loadProfile();
+  if (page === 'admin') loadAdminVPN();
+}
+
+// CLICKER
+let clickThrottle = false;
+document.getElementById('click-btn').addEventListener('click', async function(e) {
+  if (!state.user) return;
+  if (clickThrottle) {
+    state.balance += state.cpc;
+    state.totalClicks += 1;
+    updateBalanceUI();
+    spawnFloat(e.clientX, e.clientY, `+${state.cpc}`);
+    return;
+  }
+  clickThrottle = true;
+  state.balance += state.cpc;
+  state.totalClicks += 1;
+  updateBalanceUI();
+  spawnFloat(e.clientX, e.clientY, `+${state.cpc}`);
+
+  // Batch click to server every 300ms
+  setTimeout(() => {
+    clickThrottle = false;
+    syncClick();
+  }, 300);
+});
+
+async function syncClick() {
+  if (!state.user) return;
+  try {
+    await fetch(`/api/click/${state.user.telegram_id}`, { method: 'POST' });
+  } catch(e) {}
+}
+
+function spawnFloat(x, y, text) {
+  const el = document.createElement('div');
+  el.className = 'float-text';
+  el.textContent = text;
+  el.style.left = (x - 20) + 'px';
+  el.style.top = (y - 20) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 850);
+}
+
+// UPGRADES
+async function loadUpgrades() {
+  const container = document.getElementById('upgrades-list');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const [upgradesRes, userUpgradesRes] = await Promise.all([
+      fetch('/api/upgrades'),
+      fetch(`/api/upgrades`) // we'll just fetch all and show all
+    ]);
+    const upgrades = await upgradesRes.json();
+    if (!upgrades.length) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🛒</div><div>Улучшения временно недоступны</div></div>';
+      return;
+    }
+    container.innerHTML = upgrades.map(u => `
+      <div class="card">
+        <div class="card-row" style="margin-bottom:8px">
+          <div style="font-size:28px">${u.icon}</div>
+          <div style="flex:1;margin-left:12px">
+            <div class="card-title">${u.name}</div>
+            <div class="card-desc">${u.description}</div>
+          </div>
+        </div>
+        <div class="card-row">
+          <div>
+            <div class="price-tag">💰 ${u.price.toLocaleString('ru')} кл.</div>
+            <div class="bonus-tag">+${u.clicks_bonus} клик/тап</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="buyUpgrade(${u.id}, ${u.price}, '${u.name}')">Купить</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
+  }
+}
+
+async function buyUpgrade(upgradeId, price, name) {
+  if (!state.user) return;
+  if (state.balance < price) {
+    showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/upgrades/buy/${state.user.telegram_id}/${upgradeId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      state.balance = data.new_balance;
+      state.cpc = data.clicks_per_click;
+      updateBalanceUI();
+      showToast(`✅ ${name} куплено!`, 'success');
+      loadUpgrades();
+    } else {
+      showToast(`❌ ${data.error}`, 'error');
+    }
+  } catch(e) {
+    showToast('❌ Ошибка покупки', 'error');
+  }
+}
+
+// VPN
+let currentVpn = null;
+
+async function loadVPN() {
+  const container = document.getElementById('vpn-list');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch('/api/vpn');
+    const configs = await res.json();
+    if (!configs.length) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🔐</div><div>VPN конфигов пока нет</div><div style="margin-top:8px;font-size:12px">Ожидайте добавления от администратора</div></div>';
+      return;
+    }
+    container.innerHTML = configs.map(c => {
+      const until = c.available_until ? new Date(c.available_until).toLocaleDateString('ru') : 'Бессрочно';
+      return `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div class="card-title">🔐 ${c.name}</div>
+          <span class="tag tag-green">${c.quantity_left} шт.</span>
+        </div>
+        <div class="card-desc">${c.description || 'VPN конфиг'}</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <span class="tag tag-blue">⏳ ${c.duration_days} дней</span>
+          <span class="tag tag-yellow">📅 До: ${until}</span>
+        </div>
+        <div class="card-row">
+          <div class="price-tag">💰 ${c.price_clicks.toLocaleString('ru')} кликов</div>
+          <button class="btn btn-primary btn-sm" onclick="openVpnModal(${JSON.stringify(c).replace(/"/g, '&quot;')})">Купить</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
+  }
+}
+
+function openVpnModal(vpn) {
+  currentVpn = vpn;
+  document.getElementById('modal-vpn-title').textContent = `🔐 ${vpn.name}`;
+  const until = vpn.available_until ? new Date(vpn.available_until).toLocaleDateString('ru') : 'Бессрочно';
+  document.getElementById('modal-vpn-body').innerHTML = `
+    <div style="margin-bottom:12px;color:var(--text2);font-size:13px">${vpn.description || ''}</div>
+    <div class="stat-grid" style="margin:0 0 12px">
+      <div class="stat-card"><div class="stat-val" style="font-size:18px">💰 ${Math.floor(vpn.price_clicks).toLocaleString('ru')}</div><div class="stat-lbl">Кликов</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:18px">⏳ ${vpn.duration_days}</div><div class="stat-lbl">Дней</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:18px">${vpn.quantity_left}</div><div class="stat-lbl">В наличии</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:18px">📅</div><div class="stat-lbl">${until}</div></div>
+    </div>
+    <div style="font-size:13px;color:var(--text2)">Твой баланс: <b style="color:var(--yellow)">${Math.floor(state.balance).toLocaleString('ru')}</b> кликов</div>
+  `;
+  document.getElementById('modal-vpn-buy-btn').onclick = () => buyVPN(vpn.id);
+  openModal('modal-vpn');
+}
+
+async function buyVPN(vpnId) {
+  if (!state.user) return;
+  try {
+    const res = await fetch(`/api/vpn/buy/${state.user.telegram_id}/${vpnId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      state.balance = data.new_balance;
+      updateBalanceUI();
+      closeModal('modal-vpn');
+      showToast('✅ VPN куплен! Конфиг в профиле', 'success');
+      loadVPN();
+    } else {
+      showToast(`❌ ${data.error}`, 'error');
+    }
+  } catch(e) {
+    showToast('❌ Ошибка покупки', 'error');
+  }
+}
+
+// PROFILE
+async function loadProfile() {
+  if (!state.user) return;
+  const histContainer = document.getElementById('vpn-history');
+
+  try {
+    const res = await fetch(`/api/vpn/purchases/${state.user.telegram_id}`);
+    const purchases = await res.json();
+    document.getElementById('stat-vpn-count').textContent = purchases.length;
+
+    if (!purchases.length) {
+      histContainer.innerHTML = '<div class="empty"><div class="empty-icon">🔐</div><div>Покупок VPN нет</div></div>';
+      return;
+    }
+    histContainer.innerHTML = purchases.map(p => {
+      const bought = new Date(p.purchased_at).toLocaleDateString('ru');
+      const expires = p.expires_at ? new Date(p.expires_at).toLocaleDateString('ru') : '—';
+      const isExpired = p.expires_at && new Date(p.expires_at) < new Date();
+      return `
+      <div class="purchase-card">
+        <div class="purchase-name">🔐 ${p.vpn_name}</div>
+        <div class="purchase-meta">Куплено: ${bought} · Истекает: ${expires}</div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${isExpired ? '<span class="tag tag-red">Истёк</span>' : '<span class="tag tag-green">Активен</span>'}
+          <span class="tag tag-yellow">💰 ${Math.floor(p.price_paid)}</span>
+        </div>
+        ${p.config_data ? `
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--accent2)">Показать конфиг</summary>
+          <div style="margin-top:8px;background:var(--bg);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:var(--text2)">${p.config_data}</div>
+        </details>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    histContainer.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
+  }
+}
+
+// ADMIN
+let adminTab = 'vpn';
+
+function switchAdminTab(tab) {
+  adminTab = tab;
+  document.querySelectorAll('.admin-tab').forEach((t, i) => {
+    const tabs = ['vpn', 'users', 'balance'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.getElementById('admin-tab-vpn').style.display = tab === 'vpn' ? 'block' : 'none';
+  document.getElementById('admin-tab-users').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('admin-tab-balance').style.display = tab === 'balance' ? 'block' : 'none';
+
+  if (tab === 'vpn') loadAdminVPN();
+  if (tab === 'users') loadAdminUsers();
+}
+
+async function loadAdminVPN() {
+  if (!state.user) return;
+  const container = document.getElementById('admin-vpn-list');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch(`/api/admin/vpn/${state.user.telegram_id}`);
+    if (!res.ok) { container.innerHTML = '<div class="empty">Нет доступа</div>'; return; }
+    const configs = await res.json();
+    if (!configs.length) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>Конфигов нет. Добавьте первый!</div></div>';
+      return;
+    }
+    container.innerHTML = configs.map(c => {
+      const status = c.is_active ? '<span class="tag tag-green">Активен</span>' : '<span class="tag tag-red">Отключён</span>';
+      const until = c.available_until ? new Date(c.available_until).toLocaleDateString('ru') : 'Бессрочно';
+      return `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div class="card-title">[${c.id}] ${c.name}</div>
+          ${status}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-yellow">💰 ${Math.floor(c.price_clicks)}</span>
+          <span class="tag tag-blue">⏳ ${c.duration_days}д.</span>
+          <span class="tag tag-green">📦 ${c.quantity_left}/${c.quantity}</span>
+          <span class="tag tag-blue">📅 ${until}</span>
+        </div>
+        <details style="margin-bottom:10px">
+          <summary style="cursor:pointer;font-size:12px;color:var(--text2)">Показать конфиг</summary>
+          <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${c.config_data}</div>
+        </details>
+        <button class="btn btn-sm ${c.is_active ? 'btn-danger' : 'btn-success'}" style="width:100%" onclick="adminToggleVPN(${c.id})">
+          ${c.is_active ? '❌ Отключить' : '✅ Включить'}
+        </button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
+  }
+}
+
+async function adminToggleVPN(vpnId) {
+  if (!state.user) return;
+  try {
+    const res = await fetch('/api/admin/vpn/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_telegram_id: state.user.telegram_id, vpn_id: vpnId })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(data.is_active ? '✅ Конфиг включён' : '❌ Конфиг отключён', 'success');
+      loadAdminVPN();
+    }
+  } catch(e) {
+    showToast('❌ Ошибка', 'error');
+  }
+}
+
+async function loadAdminUsers() {
+  if (!state.user) return;
+  const container = document.getElementById('admin-users-list');
+  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch(`/api/admin/users/${state.user.telegram_id}`);
+    if (!res.ok) { container.innerHTML = '<div class="empty">Нет доступа</div>'; return; }
+    const users = await res.json();
+    if (!users.length) {
+      container.innerHTML = '<div class="empty">Нет пользователей</div>';
+      return;
+    }
+    container.innerHTML = users.map(u => `
+      <div class="user-row">
+        <div class="user-info">
+          <div class="user-name">${u.first_name || u.username || 'Без имени'} ${u.is_admin ? '👑' : ''}</div>
+          <div class="user-meta">ID: ${u.telegram_id} · 💰 ${Math.floor(u.balance)} · 🖱 ${u.total_clicks}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
+  }
+}
+
+async function adminAdjustBalance(sign) {
+  if (!state.user) return;
+  const tgId = parseInt(document.getElementById('bal-tg-id').value);
+  const amount = parseFloat(document.getElementById('bal-amount').value);
+  if (!tgId || isNaN(amount)) {
+    showToast('❌ Укажите ID и сумму', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/admin/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        admin_telegram_id: state.user.telegram_id,
+        target_telegram_id: tgId,
+        amount: Math.abs(amount) * sign
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`✅ Баланс изменён. Новый: ${Math.floor(data.new_balance)}`, 'success');
+      document.getElementById('bal-amount').value = '';
+    } else {
+      showToast(`❌ ${data.error}`, 'error');
+    }
+  } catch(e) {
+    showToast('❌ Ошибка', 'error');
+  }
+}
+
+async function adminSetAdmin(isAdmin) {
+  if (!state.user) return;
+  const tgId = parseInt(document.getElementById('admin-tg-id').value);
+  if (!tgId) {
+    showToast('❌ Укажите Telegram ID', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/admin/setadmin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        admin_telegram_id: state.user.telegram_id,
+        target_telegram_id: tgId,
+        is_admin: isAdmin
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(isAdmin ? '✅ Права выданы' : '✅ Права сняты', 'success');
+      document.getElementById('admin-tg-id').value = '';
+    } else {
+      showToast(`❌ ${data.error}`, 'error');
+    }
+  } catch(e) {
+    showToast('❌ Ошибка', 'error');
+  }
+}
+
+function openAddVpnModal() {
+  ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-until'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  openModal('modal-add-vpn');
+}
+
+async function submitAddVpn() {
+  if (!state.user) return;
+  const name = document.getElementById('vpn-add-name').value.trim();
+  const desc = document.getElementById('vpn-add-desc').value.trim();
+  const config = document.getElementById('vpn-add-config').value.trim();
+  const price = parseFloat(document.getElementById('vpn-add-price').value);
+  const duration = parseInt(document.getElementById('vpn-add-duration').value);
+  const qty = parseInt(document.getElementById('vpn-add-qty').value);
+  const until = document.getElementById('vpn-add-until').value;
+
+  if (!name || !config || isNaN(price) || isNaN(duration) || isNaN(qty)) {
+    showToast('❌ Заполните все обязательные поля', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/vpn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        admin_telegram_id: state.user.telegram_id,
+        name, description: desc, config_data: config,
+        price_clicks: price, duration_days: duration,
+        quantity: qty, available_until: until || null
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeModal('modal-add-vpn');
+      showToast('✅ VPN конфиг добавлен!', 'success');
+      loadAdminVPN();
+    } else {
+      showToast('❌ Ошибка добавления', 'error');
+    }
+  } catch(e) {
+    showToast('❌ Ошибка', 'error');
+  }
+}
+
+// MODAL
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target === el) closeModal(el.id);
+  });
+});
+
+// TOAST
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// START
+init();
+</script>
+</body>
+</html>
