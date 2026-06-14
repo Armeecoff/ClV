@@ -3,175 +3,110 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from database.db import (
     get_all_users, get_all_vpn_configs, adjust_balance,
-    add_vpn_config, toggle_vpn_active, set_admin, get_user_by_telegram_id
+    add_vpn_config, toggle_vpn_active, set_admin, set_premium,
+    get_user_by_telegram_id, admin_add_upgrade, admin_delete_upgrade,
+    delete_vpn_config
 )
-from database.models import VPNConfig
 from config import ADMIN_IDS
 from datetime import datetime
 
 router = Router()
 
 
-def is_admin(telegram_id: int) -> bool:
-    return telegram_id in ADMIN_IDS
+async def is_admin(telegram_id: int) -> bool:
+    if telegram_id in ADMIN_IDS:
+        return True
+    user = await get_user_by_telegram_id(telegram_id)
+    return bool(user and user.is_admin)
 
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            await message.answer("❌ У вас нет доступа к админ-панели.")
-            return
-
-    text = (
+    if not await is_admin(message.from_user.id):
+        await message.answer("❌ Нет доступа.")
+        return
+    await message.answer(
         "🛠 <b>Админ-панель</b>\n\n"
-        "Доступные команды:\n\n"
-        "/users — список всех пользователей\n"
-        "/addbalance [tg_id] [сумма] — пополнить баланс\n"
-        "/removebalance [tg_id] [сумма] — снять баланс\n"
-        "/addvpn — добавить VPN конфиг (пошагово)\n"
-        "/vpnlist — список всех VPN конфигов\n"
-        "/togglevpn [id] — включить/выключить VPN конфиг\n"
-        "/setadmin [tg_id] — выдать права админа\n"
-        "/removeadmin [tg_id] — снять права админа\n"
+        "<b>Пользователи:</b>\n"
+        "/users — список всех\n"
+        "/addbalance [id] [сумма] — пополнить\n"
+        "/removebalance [id] [сумма] — снять\n"
+        "/setadmin [id] · /removeadmin [id]\n"
+        "/setpremium [id] · /removepremium [id]\n\n"
+        "<b>VPN:</b>\n"
+        "/addvpn — добавить конфиг (пошагово)\n"
+        "/vpnlist — все конфиги\n"
+        "/togglevpn [id] · /deletevpn [id]\n\n"
+        "<b>Улучшения:</b>\n"
+        "/addupgrade — добавить улучшение\n"
+        "/upgradelist — все улучшения\n"
+        "/deleteupgrade [id]",
+        parse_mode="HTML"
     )
-    await message.answer(text, parse_mode="HTML")
 
 
 @router.message(Command("users"))
 async def cmd_users(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
-
+    if not await is_admin(message.from_user.id):
+        return
     users = await get_all_users()
     if not users:
         await message.answer("Нет пользователей.")
         return
-
-    lines = ["👥 <b>Все пользователи:</b>\n"]
-    for u in users[:30]:
-        name = u.first_name or u.username or "Без имени"
-        admin_mark = " 👑" if u.is_admin else ""
-        lines.append(
-            f"• <b>{name}</b>{admin_mark}\n"
-            f"  ID: <code>{u.telegram_id}</code>\n"
-            f"  Баланс: {int(u.balance)} | Кликов: {u.total_clicks}"
-        )
-
-    if len(users) > 30:
-        lines.append(f"\n... и ещё {len(users) - 30} пользователей")
-
+    lines = ["👥 <b>Пользователи:</b>\n"]
+    for u in users[:25]:
+        name = u.first_name or u.username or "—"
+        marks = ("👑" if u.is_admin else "") + ("⭐" if u.is_premium else "")
+        lines.append(f"• <b>{name}</b> {marks}\n  ID:<code>{u.telegram_id}</code> · 💰{int(u.balance)} · 🖱{u.total_clicks}")
+    if len(users) > 25:
+        lines.append(f"\n…и ещё {len(users)-25}")
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
 @router.message(Command("addbalance"))
 async def cmd_add_balance(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
-
+    if not await is_admin(message.from_user.id):
+        return
     parts = message.text.split()
     if len(parts) != 3:
         await message.answer("Использование: /addbalance [tg_id] [сумма]")
         return
     try:
-        tg_id = int(parts[1])
-        amount = float(parts[2])
+        tg_id = int(parts[1]); amount = float(parts[2])
     except ValueError:
-        await message.answer("❌ Неверный формат. Пример: /addbalance 123456789 500")
+        await message.answer("❌ Неверный формат")
         return
-
     result = await adjust_balance(tg_id, amount)
     if result["ok"]:
-        await message.answer(f"✅ Баланс пополнен. Новый баланс: <b>{int(result['new_balance'])}</b> кликов", parse_mode="HTML")
+        await message.answer(f"✅ Новый баланс: <b>{int(result['new_balance'])}</b>", parse_mode="HTML")
     else:
-        await message.answer(f"❌ Ошибка: {result['error']}")
+        await message.answer(f"❌ {result['error']}")
 
 
 @router.message(Command("removebalance"))
 async def cmd_remove_balance(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
-
+    if not await is_admin(message.from_user.id):
+        return
     parts = message.text.split()
     if len(parts) != 3:
         await message.answer("Использование: /removebalance [tg_id] [сумма]")
         return
     try:
-        tg_id = int(parts[1])
-        amount = float(parts[2])
+        tg_id = int(parts[1]); amount = float(parts[2])
     except ValueError:
-        await message.answer("❌ Неверный формат. Пример: /removebalance 123456789 500")
+        await message.answer("❌ Неверный формат")
         return
-
     result = await adjust_balance(tg_id, -amount)
     if result["ok"]:
-        await message.answer(f"✅ Баланс изменён. Новый баланс: <b>{int(result['new_balance'])}</b> кликов", parse_mode="HTML")
-    else:
-        await message.answer(f"❌ Ошибка: {result['error']}")
-
-
-@router.message(Command("vpnlist"))
-async def cmd_vpn_list(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
-
-    configs = await get_all_vpn_configs()
-    if not configs:
-        await message.answer("VPN конфигов нет. Добавьте через /addvpn")
-        return
-
-    lines = ["📋 <b>Все VPN конфиги:</b>\n"]
-    for c in configs:
-        status = "✅" if c.is_active else "❌"
-        until = c.available_until.strftime("%d.%m.%Y") if c.available_until else "Бессрочно"
-        lines.append(
-            f"{status} <b>[{c.id}] {c.name}</b>\n"
-            f"  💰 Цена: {int(c.price_clicks)} кликов | ⏳ {c.duration_days} дн.\n"
-            f"  📦 В наличии: {c.quantity_left}/{c.quantity} | До: {until}"
-        )
-
-    await message.answer("\n".join(lines), parse_mode="HTML")
-
-
-@router.message(Command("togglevpn"))
-async def cmd_toggle_vpn(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
-
-    parts = message.text.split()
-    if len(parts) != 2:
-        await message.answer("Использование: /togglevpn [id]")
-        return
-    try:
-        vpn_id = int(parts[1])
-    except ValueError:
-        await message.answer("❌ Неверный ID")
-        return
-
-    result = await toggle_vpn_active(vpn_id)
-    if result["ok"]:
-        status = "включён ✅" if result["is_active"] else "отключён ❌"
-        await message.answer(f"VPN конфиг [{vpn_id}] {status}")
+        await message.answer(f"✅ Новый баланс: <b>{int(result['new_balance'])}</b>", parse_mode="HTML")
     else:
         await message.answer(f"❌ {result['error']}")
 
 
 @router.message(Command("setadmin"))
 async def cmd_set_admin(message: Message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id not in ADMIN_IDS:
         return
-
     parts = message.text.split()
     if len(parts) != 2:
         await message.answer("Использование: /setadmin [tg_id]")
@@ -181,19 +116,14 @@ async def cmd_set_admin(message: Message):
     except ValueError:
         await message.answer("❌ Неверный ID")
         return
-
     result = await set_admin(tg_id, True)
-    if result["ok"]:
-        await message.answer(f"✅ Пользователю {tg_id} выданы права администратора")
-    else:
-        await message.answer(f"❌ {result['error']}")
+    await message.answer(f"✅ Права админа выданы {tg_id}" if result["ok"] else f"❌ {result['error']}")
 
 
 @router.message(Command("removeadmin"))
 async def cmd_remove_admin(message: Message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id not in ADMIN_IDS:
         return
-
     parts = message.text.split()
     if len(parts) != 2:
         await message.answer("Использование: /removeadmin [tg_id]")
@@ -203,116 +133,246 @@ async def cmd_remove_admin(message: Message):
     except ValueError:
         await message.answer("❌ Неверный ID")
         return
-
     result = await set_admin(tg_id, False)
+    await message.answer(f"✅ Права сняты" if result["ok"] else f"❌ {result['error']}")
+
+
+@router.message(Command("setpremium"))
+async def cmd_set_premium(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2:
+        await message.answer("Использование: /setpremium [tg_id]")
+        return
+    try:
+        tg_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный ID")
+        return
+    result = await set_premium(tg_id, True)
+    await message.answer(f"✅ Premium выдан {tg_id}" if result["ok"] else f"❌ {result['error']}")
+
+
+@router.message(Command("removepremium"))
+async def cmd_remove_premium(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2:
+        await message.answer("Использование: /removepremium [tg_id]")
+        return
+    try:
+        tg_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный ID")
+        return
+    result = await set_premium(tg_id, False)
+    await message.answer(f"✅ Premium снят" if result["ok"] else f"❌ {result['error']}")
+
+
+@router.message(Command("vpnlist"))
+async def cmd_vpn_list(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    configs = await get_all_vpn_configs()
+    if not configs:
+        await message.answer("VPN конфигов нет. Добавьте через /addvpn")
+        return
+    lines = ["📋 <b>VPN конфиги:</b>\n"]
+    for c in configs:
+        status = "✅" if c.is_active else "❌"
+        until = c.available_until.strftime("%d.%m.%Y") if c.available_until else "∞"
+        lines.append(f"{status} <b>[{c.id}] {c.name}</b>\n  💰{int(c.price_clicks)} · ⏳{c.duration_days}д. · 📦{c.quantity_left}/{c.quantity} · 📅{until}")
+    await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("togglevpn"))
+async def cmd_toggle_vpn(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2:
+        await message.answer("Использование: /togglevpn [id]")
+        return
+    try:
+        vpn_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный ID")
+        return
+    result = await toggle_vpn_active(vpn_id)
     if result["ok"]:
-        await message.answer(f"✅ Права администратора сняты с пользователя {tg_id}")
+        await message.answer(f"VPN [{vpn_id}] {'включён ✅' if result['is_active'] else 'отключён ❌'}")
     else:
         await message.answer(f"❌ {result['error']}")
 
 
-# Пошаговое добавление VPN конфига
-add_vpn_states = {}
+@router.message(Command("deletevpn"))
+async def cmd_delete_vpn(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2:
+        await message.answer("Использование: /deletevpn [id]")
+        return
+    try:
+        vpn_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный ID")
+        return
+    result = await delete_vpn_config(vpn_id)
+    await message.answer("✅ VPN конфиг удалён" if result["ok"] else f"❌ {result['error']}")
 
+
+@router.message(Command("upgradelist"))
+async def cmd_upgrade_list(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    from database.db import get_upgrades
+    upgrades = await get_upgrades()
+    if not upgrades:
+        await message.answer("Улучшений нет.")
+        return
+    lines = ["⚡ <b>Улучшения:</b>\n"]
+    for u in upgrades:
+        prem = " ⭐" if u.is_premium_only else ""
+        bonus = f"+{u.auto_click_bonus}/сек" if u.upgrade_type == "autoclk" else f"+{u.clicks_bonus} клик/тап"
+        lines.append(f"• <b>[{u.id}] {u.icon} {u.name}</b>{prem}\n  💰{int(u.price)} · {bonus}")
+    await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("deleteupgrade"))
+async def cmd_delete_upgrade(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) != 2:
+        await message.answer("Использование: /deleteupgrade [id]")
+        return
+    try:
+        upg_id = int(parts[1])
+    except ValueError:
+        await message.answer("❌ Неверный ID")
+        return
+    result = await admin_delete_upgrade(upg_id)
+    await message.answer("✅ Улучшение удалено" if result["ok"] else f"❌ {result['error']}")
+
+
+# ── Пошаговое добавление VPN ──
+_vpn_states = {}
 
 @router.message(Command("addvpn"))
 async def cmd_add_vpn_start(message: Message):
-    if not is_admin(message.from_user.id):
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or not user.is_admin:
-            return
+    if not await is_admin(message.from_user.id):
+        return
+    _vpn_states[message.from_user.id] = {"step": "name"}
+    await message.answer("➕ <b>Добавление VPN</b>\n\nШаг 1/6: <b>Название</b>:", parse_mode="HTML")
 
-    add_vpn_states[message.from_user.id] = {"step": "name"}
+
+# ── Пошаговое добавление Upgrade ──
+_upg_states = {}
+
+@router.message(Command("addupgrade"))
+async def cmd_add_upgrade_start(message: Message):
+    if not await is_admin(message.from_user.id):
+        return
+    _upg_states[message.from_user.id] = {"step": "name"}
     await message.answer(
-        "➕ <b>Добавление VPN конфига</b>\n\n"
-        "Шаг 1/6: Введите <b>название</b> конфига:",
+        "➕ <b>Добавление улучшения</b>\n\nШаг 1/6: <b>Название</b>:",
         parse_mode="HTML"
     )
 
 
 @router.message(F.text)
-async def handle_add_vpn_steps(message: Message):
+async def handle_steps(message: Message):
     uid = message.from_user.id
-    if uid not in add_vpn_states:
+
+    # VPN steps
+    if uid in _vpn_states:
+        state = _vpn_states[uid]
+        step = state.get("step")
+        if step == "name":
+            state["name"] = message.text; state["step"] = "description"
+            await message.answer("Шаг 2/6: <b>Описание</b>:", parse_mode="HTML")
+        elif step == "description":
+            state["description"] = message.text; state["step"] = "config_data"
+            await message.answer("Шаг 3/6: <b>Конфиг VPN</b> (текст/ключ):", parse_mode="HTML")
+        elif step == "config_data":
+            state["config_data"] = message.text; state["step"] = "price"
+            await message.answer("Шаг 4/6: <b>Цена в кликах</b>:", parse_mode="HTML")
+        elif step == "price":
+            try: state["price_clicks"] = float(message.text)
+            except ValueError: await message.answer("❌ Введите число!"); return
+            state["step"] = "duration"
+            await message.answer("Шаг 5/6: <b>Срок действия (дней)</b>:", parse_mode="HTML")
+        elif step == "duration":
+            try: state["duration_days"] = int(message.text)
+            except ValueError: await message.answer("❌ Введите целое число!"); return
+            state["step"] = "quantity"
+            await message.answer("Шаг 6/6: <b>Количество в наличии</b>:", parse_mode="HTML")
+        elif step == "quantity":
+            try: state["quantity"] = int(message.text)
+            except ValueError: await message.answer("❌ Введите целое число!"); return
+            state["step"] = "available_until"
+            await message.answer("Последний шаг: <b>Дата окончания</b> (ДД.ММ.ГГГГ или <code>нет</code>):", parse_mode="HTML")
+        elif step == "available_until":
+            available_until = None
+            if message.text.lower() not in ("нет", "no", "-"):
+                try: available_until = datetime.strptime(message.text.strip(), "%d.%m.%Y")
+                except ValueError: await message.answer("❌ Формат: ДД.ММ.ГГГГ или 'нет'"); return
+            vpn = await add_vpn_config(
+                name=state["name"], description=state["description"],
+                config_data=state["config_data"], price_clicks=state["price_clicks"],
+                duration_days=state["duration_days"], quantity=state["quantity"],
+                available_until=available_until, created_by=uid
+            )
+            del _vpn_states[uid]
+            await message.answer(f"✅ <b>VPN добавлен!</b> ID: {vpn.id}\n{vpn.name} · 💰{int(vpn.price_clicks)} · ⏳{vpn.duration_days}д.", parse_mode="HTML")
         return
 
-    state = add_vpn_states[uid]
-    step = state.get("step")
-
-    if step == "name":
-        state["name"] = message.text
-        state["step"] = "description"
-        await message.answer("Шаг 2/6: Введите <b>описание</b>:", parse_mode="HTML")
-
-    elif step == "description":
-        state["description"] = message.text
-        state["step"] = "config_data"
-        await message.answer("Шаг 3/6: Вставьте <b>конфиг VPN</b> (текст/ключ):", parse_mode="HTML")
-
-    elif step == "config_data":
-        state["config_data"] = message.text
-        state["step"] = "price"
-        await message.answer("Шаг 4/6: Укажите <b>цену в кликах</b> (число):", parse_mode="HTML")
-
-    elif step == "price":
-        try:
-            state["price_clicks"] = float(message.text)
-        except ValueError:
-            await message.answer("❌ Введите число!")
-            return
-        state["step"] = "duration"
-        await message.answer("Шаг 5/6: Укажите <b>срок действия в днях</b> (число):", parse_mode="HTML")
-
-    elif step == "duration":
-        try:
-            state["duration_days"] = int(message.text)
-        except ValueError:
-            await message.answer("❌ Введите целое число!")
-            return
-        state["step"] = "quantity"
-        await message.answer("Шаг 6/6: Укажите <b>количество в наличии</b> (число):", parse_mode="HTML")
-
-    elif step == "quantity":
-        try:
-            state["quantity"] = int(message.text)
-        except ValueError:
-            await message.answer("❌ Введите целое число!")
-            return
-        state["step"] = "available_until"
-        await message.answer(
-            "Последний шаг: Укажите <b>дату окончания продажи</b> в формате ДД.ММ.ГГГГ\n"
-            "или напишите <code>нет</code> для бессрочной продажи:",
-            parse_mode="HTML"
-        )
-
-    elif step == "available_until":
-        available_until = None
-        if message.text.lower() not in ("нет", "no", "-"):
-            try:
-                available_until = datetime.strptime(message.text.strip(), "%d.%m.%Y")
-            except ValueError:
-                await message.answer("❌ Формат даты: ДД.ММ.ГГГГ или 'нет'")
-                return
-
-        vpn = await add_vpn_config(
-            name=state["name"],
-            description=state["description"],
-            config_data=state["config_data"],
-            price_clicks=state["price_clicks"],
-            duration_days=state["duration_days"],
-            quantity=state["quantity"],
-            available_until=available_until,
-            created_by=uid
-        )
-        del add_vpn_states[uid]
-        until_str = available_until.strftime("%d.%m.%Y") if available_until else "Бессрочно"
-        await message.answer(
-            f"✅ <b>VPN конфиг добавлен!</b>\n\n"
-            f"ID: {vpn.id}\n"
-            f"Название: {vpn.name}\n"
-            f"Цена: {int(vpn.price_clicks)} кликов\n"
-            f"Срок: {vpn.duration_days} дней\n"
-            f"Кол-во: {vpn.quantity}\n"
-            f"До: {until_str}",
-            parse_mode="HTML"
-        )
+    # Upgrade steps
+    if uid in _upg_states:
+        state = _upg_states[uid]
+        step = state.get("step")
+        if step == "name":
+            state["name"] = message.text; state["step"] = "description"
+            await message.answer("Шаг 2/6: <b>Описание</b>:", parse_mode="HTML")
+        elif step == "description":
+            state["description"] = message.text; state["step"] = "icon"
+            await message.answer("Шаг 3/6: <b>Иконка</b> (эмодзи, напр. ⚡):", parse_mode="HTML")
+        elif step == "icon":
+            state["icon"] = message.text.strip() or "⚡"; state["step"] = "price"
+            await message.answer("Шаг 4/6: <b>Цена в кликах</b>:", parse_mode="HTML")
+        elif step == "price":
+            try: state["price"] = float(message.text)
+            except ValueError: await message.answer("❌ Введите число!"); return
+            state["step"] = "type"
+            await message.answer("Шаг 5/6: <b>Тип</b> — напишите:\n<code>click</code> — +клики за тап\n<code>auto</code> — авто-клик/сек", parse_mode="HTML")
+        elif step == "type":
+            t = message.text.strip().lower()
+            if t not in ("click", "auto", "autoclk"):
+                await message.answer("❌ Введите <code>click</code> или <code>auto</code>", parse_mode="HTML"); return
+            state["type"] = "autoclk" if t == "auto" else "click"
+            state["step"] = "bonus"
+            lbl = "авто-кликов в секунду (напр. 1.5)" if state["type"] == "autoclk" else "бонус кликов за тап (напр. 5)"
+            await message.answer(f"Шаг 6/6: <b>Укажите {lbl}</b>:", parse_mode="HTML")
+        elif step == "bonus":
+            try: bonus = float(message.text)
+            except ValueError: await message.answer("❌ Введите число!"); return
+            state["step"] = "premium"
+            state["bonus"] = bonus
+            await message.answer("Последний шаг: <b>Только для Premium?</b> (да / нет):", parse_mode="HTML")
+        elif step == "premium":
+            is_prem = message.text.strip().lower() in ("да", "yes", "y", "+")
+            clicks_bonus = 0 if state["type"] == "autoclk" else int(state["bonus"])
+            auto_bonus   = state["bonus"] if state["type"] == "autoclk" else 0.0
+            upg = await admin_add_upgrade(
+                name=state["name"], description=state["description"],
+                price=state["price"], upgrade_type=state["type"],
+                clicks_bonus=clicks_bonus, auto_click_bonus=auto_bonus,
+                icon=state["icon"], is_premium_only=is_prem
+            )
+            del _upg_states[uid]
+            prem_mark = " ⭐ Premium only" if is_prem else ""
+            await message.answer(f"✅ <b>Улучшение добавлено!</b> ID: {upg.id}\n{upg.icon} {upg.name} · 💰{int(upg.price)}{prem_mark}", parse_mode="HTML")
+        return

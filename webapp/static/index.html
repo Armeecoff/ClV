@@ -6,151 +6,258 @@
 <title>Clicker Bot</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --bg: #0f0f1a;
-    --bg2: #16162a;
-    --bg3: #1e1e35;
-    --accent: #7c6cf7;
-    --accent2: #a89ef8;
-    --green: #4ade80;
-    --red: #f87171;
-    --yellow: #fbbf24;
-    --text: #e2e8f0;
-    --text2: #94a3b8;
-    --card: #1e1e35;
-    --border: #2d2d50;
-    --nav-h: 70px;
-  }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; overflow-x: hidden; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
-  /* PAGES */
-  .page { display: none; flex-direction: column; min-height: calc(100vh - var(--nav-h)); padding: 16px 16px calc(var(--nav-h) + 16px); }
-  .page.active { display: flex; }
+/* ══ COLOR VARS (default: purple) ══ */
+:root {
+  --accent:#7c6cf7; --accent2:#a89ef8; --accent3:#5c4ef5;
+  --bg:#0f0f1a; --bg2:#16162a; --bg3:#1e1e35;
+  --card:#1e1e35; --border:#2d2d50;
+  --text:#e2e8f0; --text2:#94a3b8;
+  --green:#4ade80; --red:#f87171; --yellow:#fbbf24;
+  --nav-h:70px;
+  --star-opacity:0;
+  --sakura-opacity:0;
+  --bubble-opacity:0;
+}
 
-  /* NAV */
-  .nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h); background: var(--bg2); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
-  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all .2s; color: var(--text2); border: none; background: none; font-size: 11px; font-weight: 500; }
-  .nav-btn.active { color: var(--accent2); }
-  .nav-btn .icon { font-size: 22px; }
-  .nav-btn.active .icon { filter: drop-shadow(0 0 6px var(--accent)); }
+/* ══ THEMES ══ */
+body.theme-light {
+  --bg:#f0f2f8; --bg2:#ffffff; --bg3:#e8eaf0;
+  --card:#ffffff; --border:#d0d4e8;
+  --text:#1a1a2e; --text2:#555577;
+}
+body.theme-dark { /* default */ }
+body.theme-starry { background: #050510 !important; --bg:#050510; --bg2:#0a0a20; --bg3:#0f0f28; --border:#1a1a40; --star-opacity:1; }
+body.theme-blackhole { --bg:#000005; --bg2:#03000a; --bg3:#06000f; --border:#15003a; }
+body.theme-sakura { --bg:#1a0a12; --bg2:#25101a; --bg3:#2e1520; --border:#5a2040; --sakura-opacity:1; }
+body.theme-hacker { --bg:#000800; --bg2:#001200; --bg3:#001a00; --border:#004000; --accent:#00ff41; --accent2:#39ff14; --accent3:#00cc33; --text:#00ff41; --text2:#009922; }
+body.theme-ocean { --bg:#000d1a; --bg2:#001525; --bg3:#001e33; --border:#003366; --accent:#0088ff; --accent2:#33aaff; --accent3:#0055cc; --bubble-opacity:1; }
+body.theme-sunset { --bg:#1a0800; --bg2:#251200; --bg3:#301800; --border:#5a3000; --accent:#ff6600; --accent2:#ff9933; --accent3:#cc4400; }
+body.theme-system { color-scheme: light dark; }
 
-  /* HEADER */
-  .header { text-align: center; margin-bottom: 20px; }
-  .header h1 { font-size: 22px; font-weight: 700; color: var(--accent2); }
-  .header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+/* ══ COLORS ══ */
+body.color-red    { --accent:#f04040; --accent2:#ff7070; --accent3:#c02020; }
+body.color-purple { --accent:#7c6cf7; --accent2:#a89ef8; --accent3:#5c4ef5; }
+body.color-blue   { --accent:#3b82f6; --accent2:#60a5fa; --accent3:#2563eb; }
+body.color-orange { --accent:#f97316; --accent2:#fb923c; --accent3:#ea580c; }
+body.color-yellow { --accent:#eab308; --accent2:#facc15; --accent3:#ca8a04; }
+body.color-green  { --accent:#22c55e; --accent2:#4ade80; --accent3:#16a34a; }
+body.color-pink   { --accent:#ec4899; --accent2:#f472b6; --accent3:#db2777; }
+body.color-cyan   { --accent:#06b6d4; --accent2:#22d3ee; --accent3:#0891b2; }
+body.color-silver { --accent:#94a3b8; --accent2:#cbd5e1; --accent3:#64748b; }
+body.color-gold   { --accent:#d4af37; --accent2:#f5d060; --accent3:#b8860b; }
 
-  /* BALANCE BAR */
-  .balance-bar { background: linear-gradient(135deg, var(--bg3), var(--bg2)); border: 1px solid var(--border); border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .balance-info { display: flex; flex-direction: column; }
-  .balance-label { font-size: 12px; color: var(--text2); }
-  .balance-value { font-size: 26px; font-weight: 800; color: var(--yellow); line-height: 1.1; }
-  .cpc-badge { background: var(--accent); border-radius: 10px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; min-height:100vh; overflow-x:hidden; transition:background .4s,color .3s; }
 
-  /* CLICKER */
-  .clicker-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 20px; }
-  .click-btn { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #9d8fff, #5c4ef5 60%, #3b2fc9); border: 4px solid var(--accent2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 80px; box-shadow: 0 0 40px rgba(124,108,247,.4), 0 8px 32px rgba(0,0,0,.5); transition: transform .08s, box-shadow .08s; user-select: none; -webkit-user-select: none; position: relative; overflow: visible; }
-  .click-btn:active { transform: scale(.92); box-shadow: 0 0 20px rgba(124,108,247,.3); }
-  .click-hint { color: var(--text2); font-size: 14px; font-weight: 500; }
-  .float-text { position: fixed; pointer-events: none; font-weight: 800; font-size: 22px; color: var(--yellow); text-shadow: 0 2px 8px rgba(0,0,0,.5); animation: floatUp .8s ease-out forwards; z-index: 999; }
-  @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.3); } }
+/* ══ STARS ══ */
+#stars-canvas { position:fixed; inset:0; pointer-events:none; opacity:var(--star-opacity); z-index:0; transition:opacity .4s; }
 
-  /* CARDS */
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
-  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-  .card-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
-  .card-row { display: flex; align-items: center; justify-content: space-between; }
-  .price-tag { font-size: 14px; font-weight: 700; color: var(--yellow); }
-  .bonus-tag { font-size: 12px; color: var(--green); }
+/* ══ SAKURA ══ */
+.sakura-petal { position:fixed; pointer-events:none; font-size:18px; animation:sakuraFall linear infinite; opacity:var(--sakura-opacity); z-index:0; }
+@keyframes sakuraFall {
+  0%   { transform:translateY(-20px) rotate(0deg) translateX(0); opacity:.9; }
+  100% { transform:translateY(110vh) rotate(720deg) translateX(60px); opacity:0; }
+}
 
-  /* BUTTONS */
-  .btn { border: none; border-radius: 12px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
-  .btn-primary { background: linear-gradient(135deg, var(--accent), #5c4ef5); color: #fff; }
-  .btn-primary:active { transform: scale(.95); opacity: .9; }
-  .btn-primary:disabled { background: var(--bg3); color: var(--text2); cursor: not-allowed; }
-  .btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; }
-  .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
-  .btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 10px; }
-  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+/* ══ BUBBLES ══ */
+.bubble { position:fixed; bottom:-60px; border-radius:50%; background:rgba(0,136,255,.15); border:1px solid rgba(0,136,255,.3); animation:bubbleRise linear infinite; pointer-events:none; z-index:0; opacity:var(--bubble-opacity); }
+@keyframes bubbleRise { to { transform:translateY(-110vh); opacity:0; } }
 
-  /* TAGS */
-  .tag { display: inline-block; border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .tag-green { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
-  .tag-red { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
-  .tag-yellow { background: rgba(251,191,36,.15); color: var(--yellow); border: 1px solid rgba(251,191,36,.3); }
-  .tag-blue { background: rgba(124,108,247,.15); color: var(--accent2); border: 1px solid rgba(124,108,247,.3); }
+/* ══ BLACK HOLE ══ */
+#bh-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-blackhole #bh-canvas { opacity:1; }
 
-  /* PROFILE */
-  .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #5c4ef5); display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 16px; }
-  .profile-name { font-size: 20px; font-weight: 700; text-align: center; }
-  .profile-id { font-size: 13px; color: var(--text2); text-align: center; margin-top: 4px; }
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
-  .stat-card { background: var(--bg3); border-radius: 12px; padding: 12px; text-align: center; }
-  .stat-val { font-size: 22px; font-weight: 800; color: var(--accent2); }
-  .stat-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+/* ══ WAVE (ocean) ══ */
+#wave-canvas { position:fixed; bottom:0; left:0; right:0; height:120px; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-ocean #wave-canvas { opacity:var(--bubble-opacity); }
 
-  /* MODAL */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal { background: var(--bg2); border-radius: 24px 24px 0 0; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
-  .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+/* ══ PAGES ══ */
+.page { display:none; flex-direction:column; min-height:calc(100vh - var(--nav-h)); padding:16px 16px calc(var(--nav-h)+16px); position:relative; z-index:1; }
+.page.active { display:flex; }
 
-  /* FORM */
-  .form-group { margin-bottom: 14px; }
-  .form-label { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: block; }
-  .form-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color .2s; }
-  .form-input:focus { border-color: var(--accent); }
-  textarea.form-input { min-height: 80px; resize: vertical; }
+/* ══ NAV ══ */
+.nav { position:fixed; bottom:0; left:0; right:0; height:var(--nav-h); background:var(--bg2); border-top:1px solid var(--border); display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
+.nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; color:var(--text2); border:none; background:none; font-size:10px; font-weight:500; transition:color .2s; }
+.nav-btn .icon { font-size:20px; }
+.nav-btn.active { color:var(--accent2); }
+.nav-btn.active .icon { filter:drop-shadow(0 0 5px var(--accent)); }
 
-  /* LOADER */
-  .loader { display: flex; align-items: center; justify-content: center; min-height: 100px; }
-  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ══ HEADER ══ */
+.header { text-align:center; margin-bottom:16px; }
+.header h1 { font-size:20px; font-weight:700; color:var(--accent2); }
+.header p { font-size:12px; color:var(--text2); margin-top:3px; }
 
-  /* EMPTY */
-  .empty { text-align: center; padding: 40px 20px; color: var(--text2); }
-  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+/* ══ BALANCE BAR ══ */
+.balance-bar { background:linear-gradient(135deg,var(--bg3),var(--bg2)); border:1px solid var(--border); border-radius:14px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.balance-label { font-size:11px; color:var(--text2); }
+.balance-value { font-size:24px; font-weight:800; color:var(--yellow); line-height:1.1; }
+.cpc-badge { background:var(--accent); border-radius:8px; padding:3px 9px; font-size:11px; font-weight:600; color:#fff; }
 
-  /* TOAST */
-  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 14px; font-weight: 500; z-index: 999; transition: transform .3s cubic-bezier(.4,0,.2,1); max-width: 90vw; text-align: center; }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { border-color: var(--green); color: var(--green); }
-  .toast.error { border-color: var(--red); color: var(--red); }
+/* ══ CLICKER ══ */
+.clicker-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; gap:16px; }
+.click-btn {
+  width:180px; height:180px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #9d8fff, #5c4ef5 60%, #3b2fc9);
+  border:4px solid var(--accent2); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:72px;
+  box-shadow:0 0 40px rgba(124,108,247,.4),0 8px 32px rgba(0,0,0,.5);
+  transition:transform .08s, box-shadow .08s; user-select:none; -webkit-user-select:none;
+  position:relative;
+}
+.click-btn.skin-rainbow { animation:rainbowBg 3s linear infinite; border-color:#fff; }
+@keyframes rainbowBg {
+  0%   { background:radial-gradient(circle at 35% 35%,#ff8080,#ff0000 60%,#cc0000); }
+  16%  { background:radial-gradient(circle at 35% 35%,#ffb366,#ff6600 60%,#cc4400); }
+  33%  { background:radial-gradient(circle at 35% 35%,#ffff80,#ffcc00 60%,#cc9900); }
+  50%  { background:radial-gradient(circle at 35% 35%,#80ff80,#00cc00 60%,#008800); }
+  66%  { background:radial-gradient(circle at 35% 35%,#80b3ff,#0055ff 60%,#003dcc); }
+  83%  { background:radial-gradient(circle at 35% 35%,#cc80ff,#8800ff 60%,#6600cc); }
+  100% { background:radial-gradient(circle at 35% 35%,#ff8080,#ff0000 60%,#cc0000); }
+}
+.click-btn.skin-color { background:radial-gradient(circle at 35% 35%, var(--accent2), var(--accent) 60%, var(--accent3)); border-color:var(--accent2); }
+.click-btn:active { transform:scale(.91); box-shadow:0 0 20px rgba(124,108,247,.3); }
+.click-hint { color:var(--text2); font-size:13px; }
+.autoclk-info { color:var(--accent2); font-size:12px; font-weight:600; }
 
-  /* ADMIN NAV */
-  .admin-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .admin-tab { flex: 1; min-width: 80px; text-align: center; border: none; border-radius: 10px; padding: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--bg3); color: var(--text2); transition: all .2s; }
-  .admin-tab.active { background: var(--accent); color: #fff; }
+.float-text { position:fixed; pointer-events:none; font-weight:800; font-size:20px; color:var(--yellow); text-shadow:0 2px 8px rgba(0,0,0,.5); animation:floatUp .8s ease-out forwards; z-index:999; }
+@keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-70px) scale(1.3)} }
 
-  /* PURCHASE CARD */
-  .purchase-card { background: var(--bg3); border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
-  .purchase-name { font-weight: 700; margin-bottom: 4px; }
-  .purchase-meta { font-size: 12px; color: var(--text2); }
+/* ══ CARDS ══ */
+.card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+.card-title { font-size:14px; font-weight:700; margin-bottom:3px; }
+.card-desc { font-size:12px; color:var(--text2); margin-bottom:8px; }
+.card-row { display:flex; align-items:center; justify-content:space-between; }
+.price-tag { font-size:14px; font-weight:700; color:var(--yellow); }
+.bonus-tag { font-size:11px; color:var(--green); }
 
-  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--accent2); }
-  .divider { height: 1px; background: var(--border); margin: 16px 0; }
-  .user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .user-info { font-size: 13px; }
-  .user-name { font-weight: 600; }
-  .user-meta { font-size: 11px; color: var(--text2); }
+/* ══ BUTTONS ══ */
+.btn { border:none; border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+.btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent3)); color:#fff; }
+.btn-primary:active { transform:scale(.95); opacity:.9; }
+.btn-primary:disabled { background:var(--bg3); color:var(--text2); cursor:not-allowed; }
+.btn-danger  { background:linear-gradient(135deg,#ef4444,#b91c1c); color:#fff; }
+.btn-success { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+.btn-sm { padding:6px 12px; font-size:12px; border-radius:8px; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text2); }
+.btn-owned { background:var(--bg3); color:var(--green); cursor:default; font-size:12px; }
+.btn-locked { background:var(--bg3); color:var(--yellow); cursor:not-allowed; font-size:11px; }
+.btn-edit { background:rgba(124,108,247,.2); border:1px solid var(--accent); color:var(--accent2); }
+.btn-del  { background:rgba(239,68,68,.2); border:1px solid #ef4444; color:#f87171; }
+
+/* ══ TAGS ══ */
+.tag { display:inline-block; border-radius:6px; padding:2px 7px; font-size:10px; font-weight:600; }
+.tag-green  { background:rgba(74,222,128,.15); color:var(--green); border:1px solid rgba(74,222,128,.3); }
+.tag-red    { background:rgba(248,113,113,.15); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+.tag-yellow { background:rgba(251,191,36,.15); color:var(--yellow); border:1px solid rgba(251,191,36,.3); }
+.tag-blue   { background:rgba(124,108,247,.15); color:var(--accent2); border:1px solid rgba(124,108,247,.3); }
+.tag-gold   { background:rgba(212,175,55,.2); color:#f5d060; border:1px solid rgba(212,175,55,.4); }
+.tag-premium { background:linear-gradient(135deg,rgba(212,175,55,.3),rgba(245,208,96,.2)); color:#f5d060; border:1px solid #d4af37; }
+
+/* ══ PROFILE ══ */
+.profile-avatar { width:74px; height:74px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent3)); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 12px; border:3px solid var(--accent); }
+.profile-name { font-size:18px; font-weight:700; text-align:center; }
+.profile-id { font-size:12px; color:var(--text2); text-align:center; margin-top:3px; }
+.crown { color:#f5d060; margin-left:4px; }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0; }
+.stat-card { background:var(--bg3); border-radius:10px; padding:10px; text-align:center; border:1px solid var(--border); }
+.stat-val { font-size:20px; font-weight:800; color:var(--accent2); }
+.stat-lbl { font-size:10px; color:var(--text2); margin-top:1px; }
+
+/* ══ MODAL ══ */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay.open { opacity:1; pointer-events:all; }
+.modal { background:var(--bg2); border-radius:20px 20px 0 0; width:100%; max-height:88vh; overflow-y:auto; padding:16px; transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
+.modal-overlay.open .modal { transform:translateY(0); }
+.modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 14px; }
+.modal-title { font-size:17px; font-weight:700; margin-bottom:14px; }
+
+/* ══ FORM ══ */
+.form-group { margin-bottom:12px; }
+.form-label { font-size:12px; color:var(--text2); margin-bottom:5px; display:block; }
+.form-input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--text); font-size:13px; outline:none; transition:border-color .2s; }
+.form-input:focus { border-color:var(--accent); }
+textarea.form-input { min-height:70px; resize:vertical; }
+select.form-input { cursor:pointer; }
+
+/* ══ SETTINGS ══ */
+.settings-section { margin-bottom:20px; }
+.settings-title { font-size:13px; font-weight:700; color:var(--accent2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px; }
+.theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.theme-btn { border:2px solid var(--border); border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); font-size:11px; }
+.theme-btn.active { border-color:var(--accent); box-shadow:0 0 10px rgba(124,108,247,.3); }
+.theme-btn .t-icon { font-size:22px; margin-bottom:4px; }
+.color-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.color-btn { width:100%; aspect-ratio:1; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:all .2s; position:relative; }
+.color-btn.active::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+.color-btn.active { border-color:#fff; transform:scale(1.1); }
+.skin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.skin-card { border:2px solid var(--border); border-radius:12px; padding:12px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); }
+.skin-card.active { border-color:var(--accent); }
+.skin-card.locked { opacity:.6; cursor:not-allowed; }
+.skin-preview { font-size:36px; margin-bottom:6px; }
+.skin-name { font-size:12px; font-weight:600; }
+.skin-price { font-size:10px; color:var(--yellow); margin-top:2px; }
+
+/* ══ ADMIN TABS ══ */
+.admin-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.admin-tab { flex:1; min-width:60px; text-align:center; border:none; border-radius:8px; padding:7px 4px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; }
+.admin-tab.active { background:var(--accent); color:#fff; }
+
+/* ══ LOADER / EMPTY ══ */
+.loader { display:flex; align-items:center; justify-content:center; min-height:80px; }
+.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.empty { text-align:center; padding:32px 16px; color:var(--text2); }
+.empty-icon { font-size:40px; margin-bottom:10px; }
+
+/* ══ TOAST ══ */
+.toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-80px); background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:500; z-index:999; transition:transform .3s cubic-bezier(.4,0,.2,1); max-width:88vw; text-align:center; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.success { border-color:var(--green); color:var(--green); }
+.toast.error { border-color:var(--red); color:var(--red); }
+
+.section-title { font-size:14px; font-weight:700; margin-bottom:10px; color:var(--accent2); }
+.divider { height:1px; background:var(--border); margin:14px 0; }
+.user-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); }
+.user-name { font-weight:600; font-size:13px; }
+.user-meta { font-size:10px; color:var(--text2); }
+.admin-card-btns { display:flex; gap:6px; margin-top:8px; }
+
+/* ══ PURCHASE CARD ══ */
+.purchase-card { background:var(--bg3); border-radius:10px; padding:10px 12px; margin-bottom:8px; border:1px solid var(--border); }
+
+/* ══ EMOJI PICKER ══ */
+.emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+.emoji-opt { font-size:26px; text-align:center; cursor:pointer; border-radius:8px; padding:4px; border:2px solid transparent; transition:all .15s; }
+.emoji-opt:hover { background:var(--bg3); }
+.emoji-opt.active { border-color:var(--accent); background:var(--bg3); }
+
+/* ══ PREMIUM BADGE ══ */
+.premium-banner { background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(245,208,96,.1)); border:1px solid #d4af37; border-radius:12px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+.premium-banner .icon { font-size:28px; }
 </style>
 </head>
 <body>
 
-<!-- PAGES -->
+<canvas id="bh-canvas"></canvas>
+<canvas id="stars-canvas"></canvas>
+<canvas id="wave-canvas"></canvas>
+
+<!-- ══ PAGES ══ -->
+
+<!-- CLICKER -->
 <div id="page-clicker" class="page active">
-  <div class="header">
-    <h1>🖱 Кликер</h1>
-    <p id="click-total-label">Всего кликов: 0</p>
-  </div>
+  <div class="header"><h1>🖱 Кликер</h1><p id="click-total-label">Всего кликов: 0</p></div>
   <div class="balance-bar">
-    <div class="balance-info">
-      <span class="balance-label">💰 Баланс</span>
-      <span class="balance-value" id="balance-display">0</span>
+    <div>
+      <div class="balance-label">💰 Баланс</div>
+      <div class="balance-value" id="balance-display">0</div>
     </div>
-    <span class="cpc-badge" id="cpc-display">+1 / клик</span>
+    <div style="text-align:right">
+      <span class="cpc-badge" id="cpc-display">+1 / клик</span>
+      <div class="autoclk-info" id="autoclk-display" style="margin-top:4px;display:none"></div>
+    </div>
   </div>
   <div class="clicker-wrap">
     <button class="click-btn" id="click-btn">💎</button>
@@ -158,146 +265,176 @@
   </div>
 </div>
 
+<!-- SHOP (upgrades) -->
 <div id="page-shop" class="page">
-  <div class="header">
-    <h1>🛒 Магазин улучшений</h1>
-    <p>Покупай улучшения кликера</p>
-  </div>
+  <div class="header"><h1>🛒 Магазин</h1><p>Улучшения кликера</p></div>
   <div class="balance-bar">
-    <div class="balance-info">
-      <span class="balance-label">💰 Баланс</span>
-      <span class="balance-value" id="shop-balance">0</span>
-    </div>
-    <span class="cpc-badge" id="shop-cpc">+1 / клик</span>
+    <div><div class="balance-label">💰 Баланс</div><div class="balance-value" id="shop-balance">0</div></div>
+    <span class="cpc-badge" id="shop-cpc">+1/клик</span>
   </div>
-  <div id="upgrades-list">
-    <div class="loader"><div class="spinner"></div></div>
-  </div>
+  <div id="upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
 </div>
 
+<!-- VPN -->
 <div id="page-vpn" class="page">
-  <div class="header">
-    <h1>🔐 VPN Магазин</h1>
-    <p>Купи VPN за клики</p>
-  </div>
+  <div class="header"><h1>🔐 VPN</h1><p>Купи VPN за клики</p></div>
   <div class="balance-bar">
-    <div class="balance-info">
-      <span class="balance-label">💰 Баланс</span>
-      <span class="balance-value" id="vpn-balance">0</span>
-    </div>
+    <div><div class="balance-label">💰 Баланс</div><div class="balance-value" id="vpn-balance">0</div></div>
     <span class="tag tag-blue">Платишь кликами</span>
   </div>
-  <div id="vpn-list">
-    <div class="loader"><div class="spinner"></div></div>
-  </div>
+  <div id="vpn-list"><div class="loader"><div class="spinner"></div></div></div>
 </div>
 
+<!-- PROFILE -->
 <div id="page-profile" class="page">
   <div class="header"><h1>👤 Профиль</h1></div>
-  <div class="profile-avatar">👤</div>
+  <div class="profile-avatar" id="profile-avatar">👤</div>
   <div class="profile-name" id="profile-name">Загрузка...</div>
   <div class="profile-id" id="profile-id">ID: —</div>
-
+  <div id="premium-banner" style="display:none;margin-top:12px" class="premium-banner">
+    <div class="icon">👑</div>
+    <div><div style="font-weight:700;color:#f5d060">Premium подписка активна</div><div style="font-size:11px;color:var(--text2)">+10% к кликам · Эксклюзивные улучшения</div></div>
+  </div>
   <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-val" id="stat-balance">0</div>
-      <div class="stat-lbl">💰 Баланс</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" id="stat-clicks">0</div>
-      <div class="stat-lbl">🖱 Всего кликов</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" id="stat-cpc">1</div>
-      <div class="stat-lbl">⚡ Кликов/тап</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" id="stat-vpn-count">0</div>
-      <div class="stat-lbl">🔐 VPN куплено</div>
+    <div class="stat-card"><div class="stat-val" id="stat-balance">0</div><div class="stat-lbl">💰 Баланс</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-clicks">0</div><div class="stat-lbl">🖱 Всего кликов</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-cpc">1</div><div class="stat-lbl">⚡ Клик/тап</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-autoclk">0</div><div class="stat-lbl">🤖 Авто/сек</div></div>
+  </div>
+  <div class="section-title">История VPN</div>
+  <div id="vpn-history"><div class="loader"><div class="spinner"></div></div></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="page-settings" class="page">
+  <div class="header"><h1>⚙️ Настройки</h1></div>
+
+  <div class="settings-section">
+    <div class="settings-title">🎨 Тема</div>
+    <div class="theme-grid">
+      <div class="theme-btn active" onclick="setTheme('dark')" id="tbtn-dark"><div class="t-icon">🌙</div>Тёмная</div>
+      <div class="theme-btn" onclick="setTheme('light')" id="tbtn-light"><div class="t-icon">☀️</div>Светлая</div>
+      <div class="theme-btn" onclick="setTheme('system')" id="tbtn-system"><div class="t-icon">📱</div>Системная</div>
+      <div class="theme-btn" onclick="setTheme('starry')" id="tbtn-starry"><div class="t-icon">✨</div>Звёздная</div>
+      <div class="theme-btn" onclick="setTheme('blackhole')" id="tbtn-blackhole"><div class="t-icon">🕳</div>Чёрная дыра</div>
+      <div class="theme-btn" onclick="setTheme('sakura')" id="tbtn-sakura"><div class="t-icon">🌸</div>Сакура</div>
+      <div class="theme-btn" onclick="setTheme('hacker')" id="tbtn-hacker"><div class="t-icon">💻</div>Хакер</div>
+      <div class="theme-btn" onclick="setTheme('ocean')" id="tbtn-ocean"><div class="t-icon">🌊</div>Океан</div>
+      <div class="theme-btn" onclick="setTheme('sunset')" id="tbtn-sunset"><div class="t-icon">🌅</div>Закат</div>
     </div>
   </div>
 
-  <div class="section-title">История покупок VPN</div>
-  <div id="vpn-history">
-    <div class="loader"><div class="spinner"></div></div>
+  <div class="settings-section">
+    <div class="settings-title">🎨 Цвет интерфейса</div>
+    <div class="color-grid">
+      <button class="color-btn" style="background:#f04040" onclick="setColor('red')"    id="cbtn-red"   ></button>
+      <button class="color-btn active" style="background:#7c6cf7" onclick="setColor('purple')" id="cbtn-purple"></button>
+      <button class="color-btn" style="background:#3b82f6" onclick="setColor('blue')"   id="cbtn-blue"  ></button>
+      <button class="color-btn" style="background:#f97316" onclick="setColor('orange')" id="cbtn-orange"></button>
+      <button class="color-btn" style="background:#eab308" onclick="setColor('yellow')" id="cbtn-yellow"></button>
+      <button class="color-btn" style="background:#22c55e" onclick="setColor('green')"  id="cbtn-green" ></button>
+      <button class="color-btn" style="background:#ec4899" onclick="setColor('pink')"   id="cbtn-pink"  ></button>
+      <button class="color-btn" style="background:#06b6d4" onclick="setColor('cyan')"   id="cbtn-cyan"  ></button>
+      <div style="position:relative" title="5000 кликов">
+        <button class="color-btn" style="background:linear-gradient(135deg,#94a3b8,#cbd5e1)" onclick="setColor('silver','silver')" id="cbtn-silver"></button>
+        <div style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
+      </div>
+      <div style="position:relative" title="5000 кликов">
+        <button class="color-btn" style="background:linear-gradient(135deg,#d4af37,#f5d060)" onclick="setColor('gold','gold')" id="cbtn-gold"></button>
+        <div style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow);white-space:nowrap">5к</div>
+      </div>
+    </div>
+    <div style="margin-top:18px"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">🖱 Скин кликера</div>
+    <div class="skin-grid">
+      <div class="skin-card active" id="skin-default" onclick="setSkin('default')">
+        <div class="skin-preview">💎</div>
+        <div class="skin-name">По умолчанию</div>
+        <div class="skin-price">Бесплатно</div>
+      </div>
+      <div class="skin-card" id="skin-color" onclick="setSkin('color')">
+        <div class="skin-preview">🟣</div>
+        <div class="skin-name">Цветной</div>
+        <div class="skin-price">Использует цвет</div>
+      </div>
+      <div class="skin-card locked" id="skin-rainbow" onclick="buySkin('rainbow')">
+        <div class="skin-preview" style="animation:rainbowBg 2s linear infinite;border-radius:50%;width:40px;height:40px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center">💎</div>
+        <div class="skin-name">🌈 Радужный</div>
+        <div class="skin-price">7 500 кликов</div>
+      </div>
+      <div class="skin-card locked" id="skin-custom" onclick="openCustomSkinModal()">
+        <div class="skin-preview" id="custom-skin-preview">🎮</div>
+        <div class="skin-name">🎨 Кастомный</div>
+        <div class="skin-price">10 000 кликов</div>
+      </div>
+    </div>
   </div>
 </div>
 
+<!-- ADMIN -->
 <div id="page-admin" class="page">
   <div class="header"><h1>🛠 Админ-панель</h1></div>
   <div class="admin-tabs">
     <button class="admin-tab active" onclick="switchAdminTab('vpn')">VPN</button>
+    <button class="admin-tab" onclick="switchAdminTab('upgrades')">Улучшения</button>
     <button class="admin-tab" onclick="switchAdminTab('users')">Юзеры</button>
     <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
   </div>
 
-  <!-- VPN Tab -->
   <div id="admin-tab-vpn">
-    <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="openAddVpnModal()">➕ Добавить VPN конфиг</button>
-    <div class="section-title">Все конфиги</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddVpnModal()">➕ Добавить VPN</button>
     <div id="admin-vpn-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
 
-  <!-- Users Tab -->
+  <div id="admin-tab-upgrades" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddUpgradeModal()">➕ Добавить улучшение</button>
+    <div id="admin-upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
   <div id="admin-tab-users" style="display:none">
-    <div class="section-title">Все пользователи</div>
     <div id="admin-users-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
 
-  <!-- Balance Tab -->
   <div id="admin-tab-balance" style="display:none">
     <div class="section-title">Управление балансом</div>
-    <div class="form-group">
-      <label class="form-label">Telegram ID пользователя</label>
-      <input type="number" class="form-input" id="bal-tg-id" placeholder="123456789">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Сумма (отрицательная — снять)</label>
-      <input type="number" class="form-input" id="bal-amount" placeholder="100 или -100">
-    </div>
-    <div style="display:flex;gap:10px">
+    <div class="form-group"><label class="form-label">Telegram ID</label><input type="number" class="form-input" id="bal-tg-id" placeholder="123456789"></div>
+    <div class="form-group"><label class="form-label">Сумма</label><input type="number" class="form-input" id="bal-amount" placeholder="500"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn btn-success" style="flex:1" onclick="adminAdjustBalance(1)">➕ Пополнить</button>
-      <button class="btn btn-danger" style="flex:1" onclick="adminAdjustBalance(-1)">➖ Снять</button>
+      <button class="btn btn-danger"  style="flex:1" onclick="adminAdjustBalance(-1)">➖ Снять</button>
     </div>
     <div class="divider"></div>
-    <div class="section-title">Управление правами</div>
-    <div class="form-group">
-      <label class="form-label">Telegram ID пользователя</label>
-      <input type="number" class="form-input" id="admin-tg-id" placeholder="123456789">
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-primary" style="flex:1" onclick="adminSetAdmin(true)">👑 Выдать права</button>
-      <button class="btn btn-danger" style="flex:1" onclick="adminSetAdmin(false)">❌ Снять права</button>
+    <div class="section-title">Права и Premium</div>
+    <div class="form-group"><label class="form-label">Telegram ID</label><input type="number" class="form-input" id="rights-tg-id" placeholder="123456789"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <button class="btn btn-primary btn-sm" onclick="adminSetAdmin(true)">👑 Выдать Admin</button>
+      <button class="btn btn-danger btn-sm"  onclick="adminSetAdmin(false)">❌ Снять Admin</button>
+      <button class="btn btn-success btn-sm" onclick="adminSetPremium(true)">⭐ Выдать Premium</button>
+      <button class="btn btn-danger btn-sm"  onclick="adminSetPremium(false)">❌ Снять Premium</button>
     </div>
   </div>
 </div>
 
 <!-- NAV -->
 <nav class="nav">
-  <button class="nav-btn active" onclick="navigate('clicker')" id="nav-clicker">
-    <span class="icon">🖱</span><span>Кликер</span>
-  </button>
-  <button class="nav-btn" onclick="navigate('shop')" id="nav-shop">
-    <span class="icon">🛒</span><span>Магазин</span>
-  </button>
-  <button class="nav-btn" onclick="navigate('vpn')" id="nav-vpn">
-    <span class="icon">🔐</span><span>VPN</span>
-  </button>
-  <button class="nav-btn" onclick="navigate('profile')" id="nav-profile">
-    <span class="icon">👤</span><span>Профиль</span>
-  </button>
-  <button class="nav-btn" onclick="navigate('admin')" id="nav-admin" style="display:none">
-    <span class="icon">🛠</span><span>Админ</span>
-  </button>
+  <button class="nav-btn active" onclick="navigate('clicker')" id="nav-clicker"><span class="icon">🖱</span><span>Кликер</span></button>
+  <button class="nav-btn" onclick="navigate('shop')"    id="nav-shop">   <span class="icon">🛒</span><span>Магазин</span></button>
+  <button class="nav-btn" onclick="navigate('vpn')"     id="nav-vpn">    <span class="icon">🔐</span><span>VPN</span></button>
+  <button class="nav-btn" onclick="navigate('profile')" id="nav-profile"><span class="icon">👤</span><span>Профиль</span></button>
+  <button class="nav-btn" onclick="navigate('settings')"id="nav-settings"><span class="icon">⚙️</span><span>Настройки</span></button>
+  <button class="nav-btn" onclick="navigate('admin')"   id="nav-admin" style="display:none"><span class="icon">🛠</span><span>Админ</span></button>
 </nav>
 
-<!-- MODAL: VPN Details -->
+<!-- MODAL: VPN buy -->
 <div class="modal-overlay" id="modal-vpn">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-vpn-title">VPN Конфиг</div>
+    <div class="modal-title" id="modal-vpn-title">VPN</div>
     <div id="modal-vpn-body"></div>
-    <div style="margin-top:16px;display:flex;gap:10px">
+    <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-vpn')">Отмена</button>
       <button class="btn btn-primary" style="flex:1" id="modal-vpn-buy-btn">Купить</button>
     </div>
@@ -308,571 +445,889 @@
 <div class="modal-overlay" id="modal-add-vpn">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">➕ Добавить VPN конфиг</div>
-    <div class="form-group">
-      <label class="form-label">Название *</label>
-      <input class="form-input" id="vpn-add-name" placeholder="Например: Европа Pro">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Описание</label>
-      <textarea class="form-input" id="vpn-add-desc" placeholder="Описание конфига..."></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Конфиг / ключ VPN *</label>
-      <textarea class="form-input" id="vpn-add-config" placeholder="Вставьте конфиг или ключ..."></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Цена в кликах *</label>
-      <input class="form-input" type="number" id="vpn-add-price" placeholder="1000">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Срок действия (дней) *</label>
-      <input class="form-input" type="number" id="vpn-add-duration" placeholder="30">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Количество в наличии *</label>
-      <input class="form-input" type="number" id="vpn-add-qty" placeholder="10">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Доступен до (ГГГГ-ММ-ДД, пусто = бессрочно)</label>
-      <input class="form-input" type="date" id="vpn-add-until">
-    </div>
-    <div style="display:flex;gap:10px;margin-top:8px">
+    <div class="modal-title" id="modal-add-vpn-title">➕ VPN конфиг</div>
+    <input type="hidden" id="edit-vpn-id" value="">
+    <div class="form-group"><label class="form-label">Название *</label><input class="form-input" id="vpn-add-name" placeholder="Европа Pro"></div>
+    <div class="form-group"><label class="form-label">Описание</label><textarea class="form-input" id="vpn-add-desc" placeholder="Описание..."></textarea></div>
+    <div class="form-group"><label class="form-label">Конфиг / ключ *</label><textarea class="form-input" id="vpn-add-config" placeholder="Вставьте конфиг..."></textarea></div>
+    <div class="form-group"><label class="form-label">Цена (кликов) *</label><input class="form-input" type="number" id="vpn-add-price" placeholder="1000"></div>
+    <div class="form-group"><label class="form-label">Срок (дней) *</label><input class="form-input" type="number" id="vpn-add-duration" placeholder="30"></div>
+    <div class="form-group"><label class="form-label">Количество *</label><input class="form-input" type="number" id="vpn-add-qty" placeholder="10"></div>
+    <div class="form-group"><label class="form-label">До даты (пусто = бессрочно)</label><input class="form-input" type="date" id="vpn-add-until"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-vpn')">Отмена</button>
-      <button class="btn btn-primary" style="flex:1" onclick="submitAddVpn()">Добавить</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitVpnForm()">Сохранить</button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- MODAL: Add Upgrade -->
+<div class="modal-overlay" id="modal-add-upgrade">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-add-upg-title">➕ Улучшение</div>
+    <input type="hidden" id="edit-upg-id" value="">
+    <div class="form-group"><label class="form-label">Название *</label><input class="form-input" id="upg-add-name" placeholder="Мега кликер"></div>
+    <div class="form-group"><label class="form-label">Описание</label><input class="form-input" id="upg-add-desc" placeholder="Описание..."></div>
+    <div class="form-group"><label class="form-label">Иконка (эмодзи)</label><input class="form-input" id="upg-add-icon" placeholder="⚡" maxlength="4" style="width:80px"></div>
+    <div class="form-group"><label class="form-label">Цена (кликов) *</label><input class="form-input" type="number" id="upg-add-price" placeholder="500"></div>
+    <div class="form-group">
+      <label class="form-label">Тип *</label>
+      <select class="form-input" id="upg-add-type" onchange="updateUpgTypeFields()">
+        <option value="click">+Клики за тап</option>
+        <option value="autoclk">Авто-клик (в сек)</option>
+      </select>
+    </div>
+    <div class="form-group" id="upg-clicks-field"><label class="form-label">Бонус кликов *</label><input class="form-input" type="number" id="upg-add-clicks" placeholder="5"></div>
+    <div class="form-group" id="upg-autoclk-field" style="display:none"><label class="form-label">Авто-кликов/сек *</label><input class="form-input" type="number" step="0.1" id="upg-add-autoclk" placeholder="1.0"></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="upg-premium-only" style="width:16px;height:16px;cursor:pointer">
+      <label for="upg-premium-only" class="form-label" style="margin:0;cursor:pointer">⭐ Только для Premium</label>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-upgrade')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitUpgradeForm()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Custom skin emoji picker -->
+<div class="modal-overlay" id="modal-custom-skin">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎨 Выбери эмодзи кликера</div>
+    <div style="margin-bottom:12px;color:var(--text2);font-size:12px">Текущий: <span id="current-emoji-display" style="font-size:20px">💎</span></div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <input class="form-input" id="custom-emoji-input" placeholder="Или введи своё эмодзи" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="applyCustomEmoji()">OK</button>
+    </div>
+    <button class="btn btn-outline" style="width:100%;margin-top:10px" onclick="closeModal('modal-custom-skin')">Закрыть</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-  tg.setHeaderColor('#0f0f1a');
-  tg.setBackgroundColor('#0f0f1a');
-}
+if (tg) { tg.ready(); tg.expand(); }
 
-let state = {
-  user: null,
-  balance: 0,
-  totalClicks: 0,
-  cpc: 1,
-  page: 'clicker'
+// ══ STATE ══
+const S = {
+  user: null, balance: 0, totalClicks: 0, cpc: 1, acps: 0,
+  page: 'clicker', isPremium: false,
+  theme: localStorage.getItem('theme') || 'dark',
+  color: localStorage.getItem('color') || 'purple',
+  skin: localStorage.getItem('skin') || 'default',
+  customEmoji: localStorage.getItem('customEmoji') || '💎',
+  ownedSkins: JSON.parse(localStorage.getItem('ownedSkins') || '["default","color"]'),
 };
 
-// Init
+// ══ PENDING CLICKS ══
+let pendingClicks = 0;
+let pendingAuto  = 0;
+let clickFlushTimer = null;
+let autoFlushTimer  = null;
+
+// ══ INIT ══
 async function init() {
-  let tgId = null, username = null, firstName = null;
-  if (tg && tg.initDataUnsafe?.user) {
+  applyTheme(S.theme, false);
+  applyColor(S.color, false);
+  applySkin(S.skin, false);
+  initBgEffects();
+  initSettings();
+
+  let tgId = 100000001, username = null, firstName = 'Test';
+  if (tg?.initDataUnsafe?.user) {
     const u = tg.initDataUnsafe.user;
-    tgId = u.id;
-    username = u.username;
-    firstName = u.first_name;
-  } else {
-    // Dev fallback
-    tgId = 100000001;
-    firstName = 'Test User';
+    tgId = u.id; username = u.username; firstName = u.first_name;
   }
-
   try {
-    const params = new URLSearchParams({ username: username || '', first_name: firstName || '' });
-    const res = await fetch(`/api/user/${tgId}?${params}`);
+    const res = await fetch(`/api/user/${tgId}?username=${username||''}&first_name=${encodeURIComponent(firstName||'')}`);
     const data = await res.json();
-    state.user = data;
-    state.balance = data.balance;
-    state.totalClicks = data.total_clicks;
-    state.cpc = data.clicks_per_click;
-
+    S.user = data; S.balance = data.balance; S.totalClicks = data.total_clicks;
+    S.cpc = data.clicks_per_click; S.acps = data.auto_clicks_per_second || 0;
+    S.isPremium = data.is_premium;
     updateBalanceUI();
-
-    if (data.is_admin) {
-      document.getElementById('nav-admin').style.display = 'flex';
-    }
-
-    // Profile
-    document.getElementById('profile-name').textContent = firstName || username || 'Пользователь';
+    if (data.is_admin) document.getElementById('nav-admin').style.display = 'flex';
+    document.getElementById('profile-name').innerHTML = (firstName||'Пользователь') + (S.isPremium ? '<span class="crown">👑</span>' : '');
     document.getElementById('profile-id').textContent = `ID: ${tgId}`;
-  } catch(e) {
-    showToast('Ошибка загрузки профиля', 'error');
-  }
+    if (S.isPremium) document.getElementById('premium-banner').style.display = 'flex';
+    if (S.acps > 0) startAutoClick();
+  } catch(e) { showToast('Ошибка загрузки', 'error'); }
 }
 
 function updateBalanceUI() {
-  const b = Math.floor(state.balance);
-  document.getElementById('balance-display').textContent = b.toLocaleString('ru');
-  document.getElementById('shop-balance').textContent = b.toLocaleString('ru');
-  document.getElementById('vpn-balance').textContent = b.toLocaleString('ru');
-  document.getElementById('cpc-display').textContent = `+${state.cpc} / клик`;
-  document.getElementById('shop-cpc').textContent = `+${state.cpc} / клик`;
-  document.getElementById('click-total-label').textContent = `Всего кликов: ${state.totalClicks.toLocaleString('ru')}`;
-
-  // Stats
-  document.getElementById('stat-balance').textContent = b.toLocaleString('ru');
-  document.getElementById('stat-clicks').textContent = state.totalClicks.toLocaleString('ru');
-  document.getElementById('stat-cpc').textContent = state.cpc;
+  const b = Math.floor(S.balance);
+  const bs = b.toLocaleString('ru');
+  document.getElementById('balance-display').textContent = bs;
+  document.getElementById('shop-balance').textContent = bs;
+  document.getElementById('vpn-balance').textContent = bs;
+  document.getElementById('stat-balance').textContent = bs;
+  document.getElementById('stat-clicks').textContent = S.totalClicks.toLocaleString('ru');
+  document.getElementById('stat-cpc').textContent = S.cpc;
+  document.getElementById('stat-autoclk').textContent = S.acps.toFixed(1);
+  const cpcLabel = S.isPremium ? `+${Math.max(Math.round(S.cpc*1.1), S.cpc+1)}/клик ⭐` : `+${S.cpc}/клик`;
+  document.getElementById('cpc-display').textContent = cpcLabel;
+  document.getElementById('shop-cpc').textContent = cpcLabel;
+  document.getElementById('click-total-label').textContent = `Всего кликов: ${S.totalClicks.toLocaleString('ru')}`;
+  const ad = document.getElementById('autoclk-display');
+  if (S.acps > 0) { ad.style.display='block'; ad.textContent=`🤖 ${S.acps.toFixed(1)}/сек`; } else { ad.style.display='none'; }
 }
 
-// NAVIGATION
+// ══ NAVIGATION ══
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
   document.getElementById(`nav-${page}`).classList.add('active');
-  state.page = page;
-
-  if (page === 'shop') loadUpgrades();
-  if (page === 'vpn') loadVPN();
+  S.page = page;
+  if (page === 'shop')    loadUpgrades();
+  if (page === 'vpn')     loadVPN();
   if (page === 'profile') loadProfile();
-  if (page === 'admin') loadAdminVPN();
+  if (page === 'admin')   { switchAdminTab('vpn'); }
 }
 
-// CLICKER
-let clickThrottle = false;
-document.getElementById('click-btn').addEventListener('click', async function(e) {
-  if (!state.user) return;
-  if (clickThrottle) {
-    state.balance += state.cpc;
-    state.totalClicks += 1;
-    updateBalanceUI();
-    spawnFloat(e.clientX, e.clientY, `+${state.cpc}`);
-    return;
-  }
-  clickThrottle = true;
-  state.balance += state.cpc;
-  state.totalClicks += 1;
+// ══ CLICKER ══
+document.getElementById('click-btn').addEventListener('click', function(e) {
+  if (!S.user) return;
+  S.balance += S.cpc; S.totalClicks += 1;
+  pendingClicks++;
   updateBalanceUI();
-  spawnFloat(e.clientX, e.clientY, `+${state.cpc}`);
-
-  // Batch click to server every 300ms
-  setTimeout(() => {
-    clickThrottle = false;
-    syncClick();
-  }, 300);
+  spawnFloat(e.clientX, e.clientY);
+  scheduleFlush();
 });
 
-async function syncClick() {
-  if (!state.user) return;
+function scheduleFlush() {
+  clearTimeout(clickFlushTimer);
+  clickFlushTimer = setTimeout(flushClicks, 400);
+}
+
+async function flushClicks() {
+  if (!S.user || pendingClicks === 0) return;
+  const count = pendingClicks; pendingClicks = 0;
   try {
-    await fetch(`/api/click/${state.user.telegram_id}`, { method: 'POST' });
+    await fetch(`/api/click/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({count})
+    });
   } catch(e) {}
 }
 
-function spawnFloat(x, y, text) {
+// ══ AUTO CLICK ══
+let autoTimer = null;
+function startAutoClick() {
+  if (autoTimer) clearInterval(autoTimer);
+  if (S.acps <= 0) return;
+  autoTimer = setInterval(() => {
+    if (!S.user) return;
+    S.balance += S.acps / 10;
+    pendingAuto += S.acps / 10;
+    updateBalanceUI();
+    if (pendingAuto >= 1) {
+      const toFlush = pendingAuto; pendingAuto = 0;
+      fetch(`/api/autoclk/${S.user.telegram_id}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: toFlush})
+      }).catch(()=>{});
+    }
+  }, 100);
+}
+
+function spawnFloat(x, y) {
   const el = document.createElement('div');
   el.className = 'float-text';
-  el.textContent = text;
-  el.style.left = (x - 20) + 'px';
-  el.style.top = (y - 20) + 'px';
+  el.textContent = `+${S.cpc}`;
+  el.style.left = (x - 20) + 'px'; el.style.top = (y - 20) + 'px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 850);
 }
 
-// UPGRADES
+// ══ UPGRADES ══
 async function loadUpgrades() {
-  const container = document.getElementById('upgrades-list');
-  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  if (!S.user) return;
+  const c = document.getElementById('upgrades-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const [upgradesRes, userUpgradesRes] = await Promise.all([
-      fetch('/api/upgrades'),
-      fetch(`/api/upgrades`) // we'll just fetch all and show all
-    ]);
-    const upgrades = await upgradesRes.json();
-    if (!upgrades.length) {
-      container.innerHTML = '<div class="empty"><div class="empty-icon">🛒</div><div>Улучшения временно недоступны</div></div>';
-      return;
-    }
-    container.innerHTML = upgrades.map(u => `
-      <div class="card">
-        <div class="card-row" style="margin-bottom:8px">
-          <div style="font-size:28px">${u.icon}</div>
-          <div style="flex:1;margin-left:12px">
+    const res  = await fetch(`/api/upgrades/${S.user.telegram_id}`);
+    const list = await res.json();
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🛒</div>Нет улучшений</div>'; return; }
+    c.innerHTML = list.map(u => {
+      const typeBadge = u.upgrade_type==='autoclk'
+        ? `<span class="tag tag-blue">🤖 Авто</span>`
+        : `<span class="tag tag-green">⚡ +Клик</span>`;
+      const premBadge = u.is_premium_only ? `<span class="tag tag-premium">⭐ Premium</span>` : '';
+      let btn = '';
+      if (u.owned) btn = `<button class="btn btn-owned btn-sm" disabled>✅ Куплено</button>`;
+      else if (u.locked) btn = `<button class="btn btn-locked btn-sm" disabled>⭐ Premium</button>`;
+      else btn = `<button class="btn btn-primary btn-sm" onclick="buyUpgrade(${u.id},${u.price},'${u.name.replace(/'/g,'`')}')">Купить</button>`;
+      const bonusTxt = u.upgrade_type==='autoclk'
+        ? `+${u.auto_click_bonus}/сек`
+        : `+${u.clicks_bonus} клик/тап`;
+      return `<div class="card">
+        <div style="display:flex;gap:10px;margin-bottom:6px">
+          <div style="font-size:26px">${u.icon}</div>
+          <div style="flex:1">
             <div class="card-title">${u.name}</div>
-            <div class="card-desc">${u.description}</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${typeBadge}${premBadge}</div>
           </div>
         </div>
+        <div class="card-desc">${u.description||''}</div>
         <div class="card-row">
-          <div>
-            <div class="price-tag">💰 ${u.price.toLocaleString('ru')} кл.</div>
-            <div class="bonus-tag">+${u.clicks_bonus} клик/тап</div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="buyUpgrade(${u.id}, ${u.price}, '${u.name}')">Купить</button>
-        </div>
-      </div>
-    `).join('');
-  } catch(e) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
-  }
-}
-
-async function buyUpgrade(upgradeId, price, name) {
-  if (!state.user) return;
-  if (state.balance < price) {
-    showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error');
-    return;
-  }
-  try {
-    const res = await fetch(`/api/upgrades/buy/${state.user.telegram_id}/${upgradeId}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      state.balance = data.new_balance;
-      state.cpc = data.clicks_per_click;
-      updateBalanceUI();
-      showToast(`✅ ${name} куплено!`, 'success');
-      loadUpgrades();
-    } else {
-      showToast(`❌ ${data.error}`, 'error');
-    }
-  } catch(e) {
-    showToast('❌ Ошибка покупки', 'error');
-  }
-}
-
-// VPN
-let currentVpn = null;
-
-async function loadVPN() {
-  const container = document.getElementById('vpn-list');
-  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
-  try {
-    const res = await fetch('/api/vpn');
-    const configs = await res.json();
-    if (!configs.length) {
-      container.innerHTML = '<div class="empty"><div class="empty-icon">🔐</div><div>VPN конфигов пока нет</div><div style="margin-top:8px;font-size:12px">Ожидайте добавления от администратора</div></div>';
-      return;
-    }
-    container.innerHTML = configs.map(c => {
-      const until = c.available_until ? new Date(c.available_until).toLocaleDateString('ru') : 'Бессрочно';
-      return `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-          <div class="card-title">🔐 ${c.name}</div>
-          <span class="tag tag-green">${c.quantity_left} шт.</span>
-        </div>
-        <div class="card-desc">${c.description || 'VPN конфиг'}</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <span class="tag tag-blue">⏳ ${c.duration_days} дней</span>
-          <span class="tag tag-yellow">📅 До: ${until}</span>
-        </div>
-        <div class="card-row">
-          <div class="price-tag">💰 ${c.price_clicks.toLocaleString('ru')} кликов</div>
-          <button class="btn btn-primary btn-sm" onclick="openVpnModal(${JSON.stringify(c).replace(/"/g, '&quot;')})">Купить</button>
+          <div><div class="price-tag">💰 ${u.price.toLocaleString('ru')}</div><div class="bonus-tag">${bonusTxt}</div></div>
+          ${btn}
         </div>
       </div>`;
     }).join('');
-  } catch(e) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
-  }
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка загрузки</div>'; }
 }
 
+async function buyUpgrade(upgradeId, price, name) {
+  if (!S.user) return;
+  if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error'); return; }
+  try {
+    const res  = await fetch(`/api/upgrades/buy/${S.user.telegram_id}/${upgradeId}`, {method:'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      S.balance = data.new_balance; S.cpc = data.clicks_per_click;
+      if (data.auto_clicks_per_second !== undefined) {
+        S.acps = data.auto_clicks_per_second;
+        startAutoClick();
+      }
+      updateBalanceUI(); showToast(`✅ ${name} куплено!`, 'success'); loadUpgrades();
+    } else { showToast(`❌ ${data.error}`, 'error'); }
+  } catch(e) { showToast('❌ Ошибка покупки', 'error'); }
+}
+
+// ══ VPN ══
+async function loadVPN() {
+  const c = document.getElementById('vpn-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const configs = await fetch('/api/vpn').then(r=>r.json());
+    if (!configs.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>VPN конфигов пока нет</div>'; return; }
+    c.innerHTML = configs.map(cf => {
+      const until = cf.available_until ? new Date(cf.available_until).toLocaleDateString('ru') : 'Бессрочно';
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div class="card-title">🔐 ${cf.name}</div>
+          <span class="tag tag-green">${cf.quantity_left} шт.</span>
+        </div>
+        <div class="card-desc">${cf.description||''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-blue">⏳ ${cf.duration_days}д.</span>
+          <span class="tag tag-yellow">📅 ${until}</span>
+        </div>
+        <div class="card-row">
+          <div class="price-tag">💰 ${cf.price_clicks.toLocaleString('ru')}</div>
+          <button class="btn btn-primary btn-sm" onclick='openVpnModal(${JSON.stringify(cf).replace(/'/g,"&#39;")})'>Купить</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+let _curVpn = null;
 function openVpnModal(vpn) {
-  currentVpn = vpn;
+  _curVpn = vpn;
   document.getElementById('modal-vpn-title').textContent = `🔐 ${vpn.name}`;
   const until = vpn.available_until ? new Date(vpn.available_until).toLocaleDateString('ru') : 'Бессрочно';
   document.getElementById('modal-vpn-body').innerHTML = `
-    <div style="margin-bottom:12px;color:var(--text2);font-size:13px">${vpn.description || ''}</div>
-    <div class="stat-grid" style="margin:0 0 12px">
-      <div class="stat-card"><div class="stat-val" style="font-size:18px">💰 ${Math.floor(vpn.price_clicks).toLocaleString('ru')}</div><div class="stat-lbl">Кликов</div></div>
-      <div class="stat-card"><div class="stat-val" style="font-size:18px">⏳ ${vpn.duration_days}</div><div class="stat-lbl">Дней</div></div>
-      <div class="stat-card"><div class="stat-val" style="font-size:18px">${vpn.quantity_left}</div><div class="stat-lbl">В наличии</div></div>
-      <div class="stat-card"><div class="stat-val" style="font-size:18px">📅</div><div class="stat-lbl">${until}</div></div>
+    <div style="color:var(--text2);font-size:12px;margin-bottom:10px">${vpn.description||''}</div>
+    <div class="stat-grid" style="margin:0 0 10px">
+      <div class="stat-card"><div class="stat-val" style="font-size:16px">💰${Math.floor(vpn.price_clicks).toLocaleString('ru')}</div><div class="stat-lbl">кликов</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:16px">⏳${vpn.duration_days}</div><div class="stat-lbl">дней</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:16px">${vpn.quantity_left}</div><div class="stat-lbl">в наличии</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:14px">📅</div><div class="stat-lbl">${until}</div></div>
     </div>
-    <div style="font-size:13px;color:var(--text2)">Твой баланс: <b style="color:var(--yellow)">${Math.floor(state.balance).toLocaleString('ru')}</b> кликов</div>
-  `;
+    <div style="font-size:12px;color:var(--text2)">Твой баланс: <b style="color:var(--yellow)">${Math.floor(S.balance).toLocaleString('ru')}</b></div>`;
   document.getElementById('modal-vpn-buy-btn').onclick = () => buyVPN(vpn.id);
   openModal('modal-vpn');
 }
 
-async function buyVPN(vpnId) {
-  if (!state.user) return;
+async function buyVPN(id) {
+  if (!S.user) return;
   try {
-    const res = await fetch(`/api/vpn/buy/${state.user.telegram_id}/${vpnId}`, { method: 'POST' });
-    const data = await res.json();
+    const data = await fetch(`/api/vpn/buy/${S.user.telegram_id}/${id}`,{method:'POST'}).then(r=>r.json());
     if (data.ok) {
-      state.balance = data.new_balance;
-      updateBalanceUI();
-      closeModal('modal-vpn');
-      showToast('✅ VPN куплен! Конфиг в профиле', 'success');
-      loadVPN();
-    } else {
-      showToast(`❌ ${data.error}`, 'error');
-    }
-  } catch(e) {
-    showToast('❌ Ошибка покупки', 'error');
-  }
+      S.balance = data.new_balance; updateBalanceUI();
+      closeModal('modal-vpn'); showToast('✅ VPN куплен! Конфиг в профиле','success'); loadVPN();
+    } else { showToast(`❌ ${data.error}`,'error'); }
+  } catch(e) { showToast('❌ Ошибка','error'); }
 }
 
-// PROFILE
+// ══ PROFILE ══
 async function loadProfile() {
-  if (!state.user) return;
-  const histContainer = document.getElementById('vpn-history');
-
+  if (!S.user) return;
+  const c = document.getElementById('vpn-history');
   try {
-    const res = await fetch(`/api/vpn/purchases/${state.user.telegram_id}`);
-    const purchases = await res.json();
-    document.getElementById('stat-vpn-count').textContent = purchases.length;
-
-    if (!purchases.length) {
-      histContainer.innerHTML = '<div class="empty"><div class="empty-icon">🔐</div><div>Покупок VPN нет</div></div>';
-      return;
-    }
-    histContainer.innerHTML = purchases.map(p => {
-      const bought = new Date(p.purchased_at).toLocaleDateString('ru');
+    const purchases = await fetch(`/api/vpn/purchases/${S.user.telegram_id}`).then(r=>r.json());
+    if (!purchases.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>Покупок VPN нет</div>'; return; }
+    c.innerHTML = purchases.map(p => {
+      const bought  = new Date(p.purchased_at).toLocaleDateString('ru');
       const expires = p.expires_at ? new Date(p.expires_at).toLocaleDateString('ru') : '—';
-      const isExpired = p.expires_at && new Date(p.expires_at) < new Date();
-      return `
-      <div class="purchase-card">
-        <div class="purchase-name">🔐 ${p.vpn_name}</div>
-        <div class="purchase-meta">Куплено: ${bought} · Истекает: ${expires}</div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${isExpired ? '<span class="tag tag-red">Истёк</span>' : '<span class="tag tag-green">Активен</span>'}
-          <span class="tag tag-yellow">💰 ${Math.floor(p.price_paid)}</span>
+      const expired = p.expires_at && new Date(p.expires_at) < new Date();
+      return `<div class="purchase-card">
+        <div style="font-weight:700;margin-bottom:3px">🔐 ${p.vpn_name}</div>
+        <div style="font-size:11px;color:var(--text2)">Куплено: ${bought} · Истекает: ${expires}</div>
+        <div style="margin-top:6px;display:flex;gap:6px">
+          ${expired ? '<span class="tag tag-red">Истёк</span>' : '<span class="tag tag-green">Активен</span>'}
+          <span class="tag tag-yellow">💰${Math.floor(p.price_paid)}</span>
         </div>
-        ${p.config_data ? `
-        <details style="margin-top:10px">
-          <summary style="cursor:pointer;font-size:13px;color:var(--accent2)">Показать конфиг</summary>
-          <div style="margin-top:8px;background:var(--bg);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:var(--text2)">${p.config_data}</div>
-        </details>` : ''}
+        ${p.config_data ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--accent2)">Показать конфиг</summary>
+        <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${p.config_data}</div></details>` : ''}
       </div>`;
     }).join('');
-  } catch(e) {
-    histContainer.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
-  }
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
 }
 
-// ADMIN
-let adminTab = 'vpn';
+// ══ SETTINGS ══
+function initSettings() {
+  // mark active theme
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  const tb = document.getElementById(`tbtn-${S.theme}`);
+  if (tb) tb.classList.add('active');
+  // mark active color
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  const cb = document.getElementById(`cbtn-${S.color}`);
+  if (cb) cb.classList.add('active');
+  // skins
+  updateSkinUI();
+  // emoji
+  buildEmojiGrid();
+  document.getElementById('custom-skin-preview').textContent = S.customEmoji;
+}
 
-function switchAdminTab(tab) {
-  adminTab = tab;
-  document.querySelectorAll('.admin-tab').forEach((t, i) => {
-    const tabs = ['vpn', 'users', 'balance'];
-    t.classList.toggle('active', tabs[i] === tab);
+function setTheme(name, save=true) {
+  S.theme = name;
+  if (save) { localStorage.setItem('theme', name); applyTheme(name); }
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  const tb = document.getElementById(`tbtn-${name}`);
+  if (tb) tb.classList.add('active');
+  initBgEffects();
+}
+
+function applyTheme(name, animate=true) {
+  document.body.className = document.body.className.replace(/theme-\S+/g, '').trim();
+  document.body.classList.add(`theme-${name}`);
+  if (tg) { try { tg.setBackgroundColor(name==='light'?'#f0f2f8':'#0f0f1a'); } catch(e){} }
+}
+
+function setColor(name, key=null, save=true) {
+  const priceColors = ['silver','gold'];
+  if (priceColors.includes(name)) {
+    if (!S.user) return;
+    const colorCosts = {silver:5000, gold:5000};
+    const cost = colorCosts[name];
+    const owned = JSON.parse(localStorage.getItem('ownedColors')||'[]');
+    if (!owned.includes(name)) {
+      if (S.balance < cost) { showToast(`❌ Нужно ${cost.toLocaleString('ru')} кликов`,'error'); return; }
+      S.balance -= cost;
+      owned.push(name);
+      localStorage.setItem('ownedColors', JSON.stringify(owned));
+      updateBalanceUI();
+      flushClicks();
+      showToast(`✅ Цвет ${name} разблокирован!`,'success');
+    }
+  }
+  S.color = name;
+  if (save) localStorage.setItem('color', name);
+  document.body.className = document.body.className.replace(/color-\S+/g, '').trim();
+  document.body.classList.add(`color-${name}`);
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  const cb = document.getElementById(`cbtn-${name}`);
+  if (cb) cb.classList.add('active');
+}
+
+function applyColor(name, save=true) { setColor(name, null, save); }
+
+function setSkin(name) {
+  if (!S.ownedSkins.includes(name)) {
+    buySkin(name); return;
+  }
+  S.skin = name;
+  localStorage.setItem('skin', name);
+  applySkin(name);
+  updateSkinUI();
+}
+
+function applySkin(name, save=true) {
+  const btn = document.getElementById('click-btn');
+  btn.classList.remove('skin-rainbow','skin-color');
+  if (name === 'rainbow') btn.classList.add('skin-rainbow');
+  else if (name === 'color') btn.classList.add('skin-color');
+  if (name === 'custom') btn.textContent = S.customEmoji;
+  else if (name !== 'rainbow' && name !== 'color') btn.textContent = '💎';
+}
+
+function updateSkinUI() {
+  ['default','color','rainbow','custom'].forEach(s => {
+    const card = document.getElementById(`skin-${s}`);
+    if (!card) return;
+    card.classList.remove('active','locked');
+    if (S.skin === s) card.classList.add('active');
+    else if (!S.ownedSkins.includes(s)) card.classList.add('locked');
   });
-  document.getElementById('admin-tab-vpn').style.display = tab === 'vpn' ? 'block' : 'none';
-  document.getElementById('admin-tab-users').style.display = tab === 'users' ? 'block' : 'none';
-  document.getElementById('admin-tab-balance').style.display = tab === 'balance' ? 'block' : 'none';
+}
 
-  if (tab === 'vpn') loadAdminVPN();
-  if (tab === 'users') loadAdminUsers();
+async function buySkin(name) {
+  if (!S.user) return;
+  if (S.ownedSkins.includes(name)) { setSkin(name); return; }
+  const prices = {rainbow:7500, custom:10000};
+  const price = prices[name];
+  if (!price) return;
+  if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`,'error'); return; }
+  S.balance -= price;
+  S.ownedSkins.push(name);
+  localStorage.setItem('ownedSkins', JSON.stringify(S.ownedSkins));
+  await flushClicks();
+  updateBalanceUI();
+  showToast(`✅ Скин разблокирован!`,'success');
+  setSkin(name);
+  updateSkinUI();
+}
+
+function openCustomSkinModal() {
+  if (!S.ownedSkins.includes('custom')) { buySkin('custom'); return; }
+  document.getElementById('current-emoji-display').textContent = S.customEmoji;
+  openModal('modal-custom-skin');
+}
+
+const EMOJI_LIST = ['💎','🔥','❄️','⚡','🌟','💫','🌈','🦄','🐉','💀','🎯','🎮','🚀','🛸','⚔️','🛡','🏆','👑','🌸','🎭','🍀','🌊','🌙','☀️','🦊'];
+function buildEmojiGrid() {
+  const g = document.getElementById('emoji-grid');
+  g.innerHTML = EMOJI_LIST.map(e =>
+    `<div class="emoji-opt ${e===S.customEmoji?'active':''}" onclick="selectEmoji('${e}')">${e}</div>`
+  ).join('');
+}
+function selectEmoji(e) {
+  document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('custom-emoji-input').value = e;
+  document.getElementById('current-emoji-display').textContent = e;
+}
+function applyCustomEmoji() {
+  const v = document.getElementById('custom-emoji-input').value.trim() || S.customEmoji;
+  S.customEmoji = v;
+  localStorage.setItem('customEmoji', v);
+  document.getElementById('custom-skin-preview').textContent = v;
+  if (S.skin === 'custom') { document.getElementById('click-btn').textContent = v; }
+  closeModal('modal-custom-skin');
+}
+
+// ══ BG EFFECTS ══
+function initBgEffects() {
+  stopBgEffects();
+  const t = S.theme;
+  if (t === 'starry')    startStars();
+  if (t === 'blackhole') startBlackHole();
+  if (t === 'sakura')    startSakura();
+  if (t === 'ocean')     startOcean();
+}
+
+let _bgTimers = [];
+function stopBgEffects() {
+  _bgTimers.forEach(t => { clearInterval(t); clearTimeout(t); });
+  _bgTimers = [];
+  document.querySelectorAll('.sakura-petal,.bubble').forEach(e=>e.remove());
+  const sc = document.getElementById('stars-canvas');
+  if (sc) { const ctx=sc.getContext('2d'); ctx.clearRect(0,0,sc.width,sc.height); }
+}
+
+// STARS
+function startStars() {
+  const c = document.getElementById('stars-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const stars = Array.from({length:180}, () => ({
+    x: Math.random()*c.width, y: Math.random()*c.height,
+    r: Math.random()*1.5+.3, a: Math.random(), da: (Math.random()-.5)*.015
+  }));
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s => {
+      s.a = Math.max(.1, Math.min(1, s.a + s.da));
+      if (s.a <= .1 || s.a >= 1) s.da *= -1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fill();
+    });
+  }
+  const t = setInterval(draw, 60); _bgTimers.push(t);
+}
+
+// BLACK HOLE
+function startBlackHole() {
+  const c = document.getElementById('bh-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  let angle = 0;
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    const cx = c.width/2, cy = c.height*.38;
+    // Dark glow
+    const grd = ctx.createRadialGradient(cx,cy,20,cx,cy,200);
+    grd.addColorStop(0,'rgba(80,0,160,.6)'); grd.addColorStop(.5,'rgba(20,0,60,.3)'); grd.addColorStop(1,'transparent');
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(cx,cy,200,0,Math.PI*2); ctx.fill();
+    // Core
+    ctx.beginPath(); ctx.arc(cx,cy,28,0,Math.PI*2);
+    ctx.fillStyle = '#000000'; ctx.fill();
+    // Rings
+    const rings = [
+      {r:55, w:6, color:'rgba(120,60,255,', a:.8, sp:.012},
+      {r:80, w:4, color:'rgba(180,100,255,', a:.5, sp:-.008},
+      {r:110,w:3, color:'rgba(220,150,255,', a:.3, sp:.005},
+      {r:148,w:2, color:'rgba(255,200,255,', a:.15,sp:-.003},
+    ];
+    rings.forEach((ring, i) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle * ring.sp * 60 + i);
+      ctx.scale(1, 0.28);
+      ctx.beginPath();
+      ctx.arc(0,0,ring.r,0,Math.PI*2);
+      ctx.strokeStyle = ring.color + ring.a + ')';
+      ctx.lineWidth = ring.w;
+      ctx.stroke();
+      ctx.restore();
+    });
+    // Accretion particles
+    for (let i=0;i<8;i++) {
+      const a2 = angle*.8 + i * (Math.PI*2/8);
+      const r2 = 60 + Math.sin(angle*3+i)*8;
+      const px = cx + Math.cos(a2)*r2, py = cy + Math.sin(a2)*r2*.28;
+      ctx.beginPath(); ctx.arc(px,py,1.5,0,Math.PI*2);
+      ctx.fillStyle=`rgba(200,150,255,${.5+.3*Math.sin(angle+i)})`; ctx.fill();
+    }
+    angle += 0.008;
+  }
+  const t = setInterval(draw, 30); _bgTimers.push(t);
+}
+
+// SAKURA
+function startSakura() {
+  function spawnPetal() {
+    const el = document.createElement('div');
+    el.className = 'sakura-petal';
+    el.textContent = ['🌸','🌺','🌼','🌹'][Math.floor(Math.random()*4)];
+    el.style.left = Math.random()*100+'vw';
+    el.style.animationDuration = (6+Math.random()*8)+'s';
+    el.style.animationDelay = (-Math.random()*6)+'s';
+    el.style.fontSize = (12+Math.random()*12)+'px';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 15000);
+  }
+  for(let i=0;i<10;i++) spawnPetal();
+  const t = setInterval(spawnPetal, 1200); _bgTimers.push(t);
+}
+
+// OCEAN
+function startOcean() {
+  // Bubbles
+  function spawnBubble() {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const sz = 8 + Math.random()*24;
+    b.style.width = b.style.height = sz+'px';
+    b.style.left = Math.random()*100+'vw';
+    b.style.animationDuration = (4+Math.random()*6)+'s';
+    b.style.animationDelay = (Math.random()*2)+'s';
+    document.body.appendChild(b);
+    setTimeout(()=>b.remove(), 12000);
+  }
+  for(let i=0;i<6;i++) spawnBubble();
+  const bt = setInterval(spawnBubble, 800); _bgTimers.push(bt);
+
+  // Waves
+  const wc = document.getElementById('wave-canvas');
+  wc.width = window.innerWidth; wc.height = 120;
+  const wctx = wc.getContext('2d');
+  let wt = 0;
+  function drawWave() {
+    wctx.clearRect(0,0,wc.width,wc.height);
+    [
+      {a:20, p:.015, o:.6, c:'rgba(0,136,255,.25)'},
+      {a:14, p:.02,  o:2,  c:'rgba(0,100,200,.2)'},
+      {a:10, p:.03,  o:4,  c:'rgba(0,60,150,.15)'}
+    ].forEach(w => {
+      wctx.beginPath();
+      for(let x=0;x<=wc.width;x+=4) {
+        const y = 60 + Math.sin(x*w.p + wt + w.o)*w.a;
+        x===0 ? wctx.moveTo(x,y) : wctx.lineTo(x,y);
+      }
+      wctx.lineTo(wc.width,wc.height); wctx.lineTo(0,wc.height); wctx.closePath();
+      wctx.fillStyle=w.c; wctx.fill();
+    });
+    wt += 0.04;
+  }
+  const wt2 = setInterval(drawWave, 30); _bgTimers.push(wt2);
+}
+
+// ══ ADMIN ══
+let curAdminTab = 'vpn';
+function switchAdminTab(tab) {
+  curAdminTab = tab;
+  ['vpn','upgrades','users','balance'].forEach(t => {
+    document.getElementById(`admin-tab-${t}`).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.admin-tab').forEach((b,i) => {
+    b.classList.toggle('active', ['vpn','upgrades','users','balance'][i]===tab);
+  });
+  if (tab==='vpn')      loadAdminVPN();
+  if (tab==='upgrades') loadAdminUpgrades();
+  if (tab==='users')    loadAdminUsers();
 }
 
 async function loadAdminVPN() {
-  if (!state.user) return;
-  const container = document.getElementById('admin-vpn-list');
-  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  if (!S.user) return;
+  const c = document.getElementById('admin-vpn-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const res = await fetch(`/api/admin/vpn/${state.user.telegram_id}`);
-    if (!res.ok) { container.innerHTML = '<div class="empty">Нет доступа</div>'; return; }
-    const configs = await res.json();
-    if (!configs.length) {
-      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>Конфигов нет. Добавьте первый!</div></div>';
-      return;
-    }
-    container.innerHTML = configs.map(c => {
-      const status = c.is_active ? '<span class="tag tag-green">Активен</span>' : '<span class="tag tag-red">Отключён</span>';
-      const until = c.available_until ? new Date(c.available_until).toLocaleDateString('ru') : 'Бессрочно';
-      return `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-          <div class="card-title">[${c.id}] ${c.name}</div>
-          ${status}
+    const list = await fetch(`/api/admin/vpn/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">📋</div>Конфигов нет</div>'; return; }
+    c.innerHTML = list.map(cf => {
+      const st = cf.is_active ? '<span class="tag tag-green">Активен</span>' : '<span class="tag tag-red">Выкл.</span>';
+      const until = cf.available_until ? new Date(cf.available_until).toLocaleDateString('ru') : '∞';
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="card-title">[${cf.id}] ${cf.name}</div>${st}
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          <span class="tag tag-yellow">💰 ${Math.floor(c.price_clicks)}</span>
-          <span class="tag tag-blue">⏳ ${c.duration_days}д.</span>
-          <span class="tag tag-green">📦 ${c.quantity_left}/${c.quantity}</span>
-          <span class="tag tag-blue">📅 ${until}</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0">
+          <span class="tag tag-yellow">💰${Math.floor(cf.price_clicks)}</span>
+          <span class="tag tag-blue">⏳${cf.duration_days}д.</span>
+          <span class="tag tag-green">📦${cf.quantity_left}/${cf.quantity}</span>
+          <span class="tag tag-blue">📅${until}</span>
         </div>
-        <details style="margin-bottom:10px">
-          <summary style="cursor:pointer;font-size:12px;color:var(--text2)">Показать конфиг</summary>
-          <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${c.config_data}</div>
+        <details><summary style="cursor:pointer;font-size:11px;color:var(--text2)">Конфиг</summary>
+          <div style="margin-top:5px;background:var(--bg);border-radius:6px;padding:6px;font-family:monospace;font-size:9px;word-break:break-all;color:var(--text2)">${cf.config_data}</div>
         </details>
-        <button class="btn btn-sm ${c.is_active ? 'btn-danger' : 'btn-success'}" style="width:100%" onclick="adminToggleVPN(${c.id})">
-          ${c.is_active ? '❌ Отключить' : '✅ Включить'}
-        </button>
+        <div class="admin-card-btns">
+          <button class="btn btn-sm btn-edit" style="flex:1" onclick="openEditVpnModal(${cf.id})">✏️ Изменить</button>
+          <button class="btn btn-sm ${cf.is_active?'btn-danger':'btn-success'}" style="flex:1" onclick="adminToggleVPN(${cf.id})">${cf.is_active?'❌ Выкл.':'✅ Вкл.'}</button>
+          <button class="btn btn-sm btn-del" onclick="adminDeleteVPN(${cf.id})">🗑</button>
+        </div>
       </div>`;
     }).join('');
-  } catch(e) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
-  }
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
 }
 
-async function adminToggleVPN(vpnId) {
-  if (!state.user) return;
+async function loadAdminUpgrades() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-upgrades-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const res = await fetch('/api/admin/vpn/toggle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ admin_telegram_id: state.user.telegram_id, vpn_id: vpnId })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showToast(data.is_active ? '✅ Конфиг включён' : '❌ Конфиг отключён', 'success');
-      loadAdminVPN();
-    }
-  } catch(e) {
-    showToast('❌ Ошибка', 'error');
-  }
+    const list = await fetch(`/api/admin/upgrades/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">⚡</div>Нет улучшений</div>'; return; }
+    c.innerHTML = list.map(u => {
+      const st = u.is_active ? '<span class="tag tag-green">Вкл.</span>' : '<span class="tag tag-red">Выкл.</span>';
+      const prem = u.is_premium_only ? '<span class="tag tag-premium">⭐</span>' : '';
+      const bonus = u.upgrade_type==='autoclk' ? `+${u.auto_click_bonus}/сек` : `+${u.clicks_bonus} клик/тап`;
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="card-title">${u.icon} ${u.name}</div>
+          <div style="display:flex;gap:4px">${prem}${st}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin:4px 0">${u.description||''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-yellow">💰${Math.floor(u.price).toLocaleString('ru')}</span>
+          <span class="tag tag-blue">${bonus}</span>
+        </div>
+        <div class="admin-card-btns">
+          <button class="btn btn-sm btn-edit" style="flex:1" onclick="openEditUpgradeModal(${u.id})">✏️ Изменить</button>
+          <button class="btn btn-sm btn-del" onclick="adminDeleteUpgrade(${u.id})">🗑 Удалить</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
 }
 
 async function loadAdminUsers() {
-  if (!state.user) return;
-  const container = document.getElementById('admin-users-list');
-  container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  if (!S.user) return;
+  const c = document.getElementById('admin-users-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const res = await fetch(`/api/admin/users/${state.user.telegram_id}`);
-    if (!res.ok) { container.innerHTML = '<div class="empty">Нет доступа</div>'; return; }
-    const users = await res.json();
-    if (!users.length) {
-      container.innerHTML = '<div class="empty">Нет пользователей</div>';
-      return;
-    }
-    container.innerHTML = users.map(u => `
+    const list = await fetch(`/api/admin/users/${S.user.telegram_id}`).then(r=>r.json());
+    c.innerHTML = list.map(u => `
       <div class="user-row">
-        <div class="user-info">
-          <div class="user-name">${u.first_name || u.username || 'Без имени'} ${u.is_admin ? '👑' : ''}</div>
-          <div class="user-meta">ID: ${u.telegram_id} · 💰 ${Math.floor(u.balance)} · 🖱 ${u.total_clicks}</div>
-        </div>
-      </div>
-    `).join('');
-  } catch(e) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div>Ошибка загрузки</div></div>';
-  }
+        <div><div class="user-name">${u.first_name||u.username||'—'} ${u.is_admin?'👑':''} ${u.is_premium?'⭐':''}</div>
+        <div class="user-meta">ID:${u.telegram_id} · 💰${Math.floor(u.balance)} · 🖱${u.total_clicks}</div></div>
+      </div>`).join('') || '<div class="empty">Нет юзеров</div>';
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
 }
 
-async function adminAdjustBalance(sign) {
-  if (!state.user) return;
-  const tgId = parseInt(document.getElementById('bal-tg-id').value);
-  const amount = parseFloat(document.getElementById('bal-amount').value);
-  if (!tgId || isNaN(amount)) {
-    showToast('❌ Укажите ID и сумму', 'error');
-    return;
-  }
-  try {
-    const res = await fetch('/api/admin/balance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        admin_telegram_id: state.user.telegram_id,
-        target_telegram_id: tgId,
-        amount: Math.abs(amount) * sign
-      })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showToast(`✅ Баланс изменён. Новый: ${Math.floor(data.new_balance)}`, 'success');
-      document.getElementById('bal-amount').value = '';
-    } else {
-      showToast(`❌ ${data.error}`, 'error');
-    }
-  } catch(e) {
-    showToast('❌ Ошибка', 'error');
-  }
-}
-
-async function adminSetAdmin(isAdmin) {
-  if (!state.user) return;
-  const tgId = parseInt(document.getElementById('admin-tg-id').value);
-  if (!tgId) {
-    showToast('❌ Укажите Telegram ID', 'error');
-    return;
-  }
-  try {
-    const res = await fetch('/api/admin/setadmin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        admin_telegram_id: state.user.telegram_id,
-        target_telegram_id: tgId,
-        is_admin: isAdmin
-      })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showToast(isAdmin ? '✅ Права выданы' : '✅ Права сняты', 'success');
-      document.getElementById('admin-tg-id').value = '';
-    } else {
-      showToast(`❌ ${data.error}`, 'error');
-    }
-  } catch(e) {
-    showToast('❌ Ошибка', 'error');
-  }
-}
-
+// VPN FORMS
 function openAddVpnModal() {
-  ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-until'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
+  document.getElementById('modal-add-vpn-title').textContent = '➕ Добавить VPN';
+  document.getElementById('edit-vpn-id').value = '';
+  ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-until'].forEach(id=>document.getElementById(id).value='');
   openModal('modal-add-vpn');
 }
 
-async function submitAddVpn() {
-  if (!state.user) return;
+async function openEditVpnModal(id) {
+  const list = await fetch(`/api/admin/vpn/${S.user.telegram_id}`).then(r=>r.json());
+  const cf = list.find(c=>c.id===id);
+  if (!cf) return;
+  document.getElementById('modal-add-vpn-title').textContent = '✏️ Редактировать VPN';
+  document.getElementById('edit-vpn-id').value = id;
+  document.getElementById('vpn-add-name').value = cf.name;
+  document.getElementById('vpn-add-desc').value = cf.description||'';
+  document.getElementById('vpn-add-config').value = cf.config_data;
+  document.getElementById('vpn-add-price').value = cf.price_clicks;
+  document.getElementById('vpn-add-duration').value = cf.duration_days;
+  document.getElementById('vpn-add-qty').value = cf.quantity;
+  document.getElementById('vpn-add-until').value = cf.available_until ? cf.available_until.slice(0,10) : '';
+  openModal('modal-add-vpn');
+}
+
+async function submitVpnForm() {
+  if (!S.user) return;
+  const editId = document.getElementById('edit-vpn-id').value;
   const name = document.getElementById('vpn-add-name').value.trim();
-  const desc = document.getElementById('vpn-add-desc').value.trim();
   const config = document.getElementById('vpn-add-config').value.trim();
   const price = parseFloat(document.getElementById('vpn-add-price').value);
-  const duration = parseInt(document.getElementById('vpn-add-duration').value);
-  const qty = parseInt(document.getElementById('vpn-add-qty').value);
-  const until = document.getElementById('vpn-add-until').value;
-
-  if (!name || !config || isNaN(price) || isNaN(duration) || isNaN(qty)) {
-    showToast('❌ Заполните все обязательные поля', 'error');
-    return;
-  }
-
+  const dur   = parseInt(document.getElementById('vpn-add-duration').value);
+  const qty   = parseInt(document.getElementById('vpn-add-qty').value);
+  if (!name||!config||isNaN(price)||isNaN(dur)||isNaN(qty)) { showToast('❌ Заполни обязательные поля','error'); return; }
+  const body = {
+    admin_telegram_id: S.user.telegram_id, name,
+    description: document.getElementById('vpn-add-desc').value.trim(),
+    config_data: config, price_clicks: price, duration_days: dur, quantity: qty,
+    available_until: document.getElementById('vpn-add-until').value || null
+  };
   try {
-    const res = await fetch('/api/admin/vpn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        admin_telegram_id: state.user.telegram_id,
-        name, description: desc, config_data: config,
-        price_clicks: price, duration_days: duration,
-        quantity: qty, available_until: until || null
-      })
-    });
+    let res;
+    if (editId) { res = await fetch('/api/admin/vpn/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,vpn_id:parseInt(editId)})}); }
+    else        { res = await fetch('/api/admin/vpn',      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
     const data = await res.json();
-    if (data.ok) {
-      closeModal('modal-add-vpn');
-      showToast('✅ VPN конфиг добавлен!', 'success');
-      loadAdminVPN();
-    } else {
-      showToast('❌ Ошибка добавления', 'error');
-    }
-  } catch(e) {
-    showToast('❌ Ошибка', 'error');
-  }
+    if (data.ok) { closeModal('modal-add-vpn'); showToast('✅ Сохранено','success'); loadAdminVPN(); }
+    else showToast('❌ Ошибка','error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
 }
 
-// MODAL
-function openModal(id) {
-  document.getElementById(id).classList.add('open');
+async function adminToggleVPN(id) {
+  if (!S.user) return;
+  await fetch('/api/admin/vpn/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,vpn_id:id})});
+  loadAdminVPN();
 }
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
+
+async function adminDeleteVPN(id) {
+  if (!S.user || !confirm('Удалить этот VPN конфиг?')) return;
+  const data = await fetch('/api/admin/vpn/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,vpn_id:id})}).then(r=>r.json());
+  if (data.ok) { showToast('✅ Удалено','success'); loadAdminVPN(); }
+  else showToast(`❌ ${data.error}`,'error');
 }
+
+// UPGRADE FORMS
+function updateUpgTypeFields() {
+  const t = document.getElementById('upg-add-type').value;
+  document.getElementById('upg-clicks-field').style.display  = t==='click'   ? 'block' : 'none';
+  document.getElementById('upg-autoclk-field').style.display = t==='autoclk' ? 'block' : 'none';
+}
+
+function openAddUpgradeModal() {
+  document.getElementById('modal-add-upg-title').textContent = '➕ Добавить улучшение';
+  document.getElementById('edit-upg-id').value = '';
+  ['upg-add-name','upg-add-desc','upg-add-price','upg-add-clicks','upg-add-autoclk'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('upg-add-icon').value = '⚡';
+  document.getElementById('upg-add-type').value = 'click';
+  document.getElementById('upg-premium-only').checked = false;
+  updateUpgTypeFields();
+  openModal('modal-add-upgrade');
+}
+
+async function openEditUpgradeModal(id) {
+  const list = await fetch(`/api/admin/upgrades/${S.user.telegram_id}`).then(r=>r.json());
+  const u = list.find(x=>x.id===id);
+  if (!u) return;
+  document.getElementById('modal-add-upg-title').textContent = '✏️ Редактировать улучшение';
+  document.getElementById('edit-upg-id').value = id;
+  document.getElementById('upg-add-name').value = u.name;
+  document.getElementById('upg-add-desc').value = u.description||'';
+  document.getElementById('upg-add-icon').value = u.icon;
+  document.getElementById('upg-add-price').value = u.price;
+  document.getElementById('upg-add-type').value = u.upgrade_type;
+  document.getElementById('upg-add-clicks').value = u.clicks_bonus;
+  document.getElementById('upg-add-autoclk').value = u.auto_click_bonus;
+  document.getElementById('upg-premium-only').checked = u.is_premium_only;
+  updateUpgTypeFields();
+  openModal('modal-add-upgrade');
+}
+
+async function submitUpgradeForm() {
+  if (!S.user) return;
+  const editId = document.getElementById('edit-upg-id').value;
+  const name = document.getElementById('upg-add-name').value.trim();
+  const type = document.getElementById('upg-add-type').value;
+  const price = parseFloat(document.getElementById('upg-add-price').value);
+  const clicks = parseInt(document.getElementById('upg-add-clicks').value)||0;
+  const autoclk = parseFloat(document.getElementById('upg-add-autoclk').value)||0;
+  if (!name||isNaN(price)) { showToast('❌ Заполни обязательные поля','error'); return; }
+  const body = {
+    admin_telegram_id: S.user.telegram_id, name,
+    description: document.getElementById('upg-add-desc').value.trim(),
+    icon: document.getElementById('upg-add-icon').value.trim()||'⚡',
+    price, upgrade_type: type, clicks_bonus: clicks,
+    auto_click_bonus: autoclk,
+    is_premium_only: document.getElementById('upg-premium-only').checked
+  };
+  try {
+    let res;
+    if (editId) { res = await fetch('/api/admin/upgrades/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,upgrade_id:parseInt(editId)})}); }
+    else        { res = await fetch('/api/admin/upgrades',      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+    const data = await res.json();
+    if (data.ok) { closeModal('modal-add-upgrade'); showToast('✅ Сохранено','success'); loadAdminUpgrades(); }
+    else showToast('❌ Ошибка','error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
+}
+
+async function adminDeleteUpgrade(id) {
+  if (!S.user || !confirm('Удалить улучшение?')) return;
+  const data = await fetch('/api/admin/upgrades/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,upgrade_id:id})}).then(r=>r.json());
+  if (data.ok) { showToast('✅ Удалено','success'); loadAdminUpgrades(); }
+  else showToast(`❌ ${data.error}`,'error');
+}
+
+async function adminAdjustBalance(sign) {
+  if (!S.user) return;
+  const tgId  = parseInt(document.getElementById('bal-tg-id').value);
+  const amount= parseFloat(document.getElementById('bal-amount').value);
+  if (!tgId||isNaN(amount)) { showToast('❌ Укажи ID и сумму','error'); return; }
+  const data = await fetch('/api/admin/balance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,target_telegram_id:tgId,amount:Math.abs(amount)*sign})}).then(r=>r.json());
+  if (data.ok) { showToast(`✅ Готово. Баланс: ${Math.floor(data.new_balance)}`,'success'); document.getElementById('bal-amount').value=''; }
+  else showToast(`❌ ${data.error}`,'error');
+}
+
+async function adminSetAdmin(val) {
+  const tgId = parseInt(document.getElementById('rights-tg-id').value);
+  if (!tgId) { showToast('❌ Укажи ID','error'); return; }
+  const data = await fetch('/api/admin/setadmin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,target_telegram_id:tgId,is_admin:val})}).then(r=>r.json());
+  if (data.ok) showToast(val?'✅ Права выданы':'✅ Права сняты','success');
+  else showToast(`❌ ${data.error}`,'error');
+}
+
+async function adminSetPremium(val) {
+  const tgId = parseInt(document.getElementById('rights-tg-id').value);
+  if (!tgId) { showToast('❌ Укажи ID','error'); return; }
+  const data = await fetch('/api/admin/setpremium',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,target_telegram_id:tgId,is_premium:val})}).then(r=>r.json());
+  if (data.ok) showToast(val?'✅ Premium выдан':'✅ Premium снят','success');
+  else showToast(`❌ ${data.error}`,'error');
+}
+
+// ══ MODAL UTILS ══
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(el => {
-  el.addEventListener('click', e => {
-    if (e.target === el) closeModal(el.id);
-  });
+  el.addEventListener('click', e => { if (e.target===el) closeModal(el.id); });
 });
 
-// TOAST
+// ══ TOAST ══
 let toastTimer;
-function showToast(msg, type = '') {
+function showToast(msg, type='') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `toast ${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  t.textContent = msg; t.className = `toast ${type} show`;
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
 }
 
-// START
+// ══ START ══
 init();
 </script>
 </body>

@@ -1,13 +1,19 @@
 from datetime import datetime
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Float,
-    ForeignKey, Integer, String, Text
+    ForeignKey, Integer, String, Text, Enum
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
+import enum
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class UpgradeType(str, enum.Enum):
+    click = "click"
+    autoclk = "autoclk"
 
 
 class User(Base):
@@ -20,7 +26,9 @@ class User(Base):
     balance = Column(Float, default=0.0, nullable=False)
     total_clicks = Column(BigInteger, default=0, nullable=False)
     clicks_per_click = Column(Integer, default=1, nullable=False)
+    auto_clicks_per_second = Column(Float, default=0.0, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    is_premium = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
@@ -34,8 +42,11 @@ class ClickUpgrade(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=False)
-    clicks_bonus = Column(Integer, nullable=False, default=1)
+    upgrade_type = Column(String(10), default="click", nullable=False)
+    clicks_bonus = Column(Integer, nullable=False, default=0)
+    auto_click_bonus = Column(Float, nullable=False, default=0.0)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_premium_only = Column(Boolean, default=False, nullable=False)
     icon = Column(String(10), default="⚡", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
