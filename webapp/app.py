@@ -14,7 +14,7 @@ from database.db import (
     edit_vpn_config, delete_vpn_config, toggle_vpn_active,
     get_all_users, set_admin, set_premium, get_user_by_telegram_id,
     admin_add_upgrade, admin_edit_upgrade, admin_delete_upgrade,
-    delete_user
+    delete_user, buy_premium_subscription
 )
 from config import ADMIN_IDS
 
@@ -42,7 +42,8 @@ async def get_user(telegram_id: int, username: str = None, first_name: str = Non
         "clicks_per_click": user.clicks_per_click,
         "auto_clicks_per_second": user.auto_clicks_per_second,
         "is_admin": check_admin(user.telegram_id, user.is_admin),
-        "is_premium": user.is_premium
+        "is_premium": user.is_premium,
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None
     }
 
 
@@ -89,6 +90,15 @@ async def list_upgrades(telegram_id: int):
 @app.post("/api/upgrades/buy/{telegram_id}/{upgrade_id}")
 async def purchase_upgrade(telegram_id: int, upgrade_id: int):
     return await buy_upgrade(telegram_id, upgrade_id)
+
+
+class PremiumBuy(BaseModel):
+    period: str
+
+
+@app.post("/api/premium/buy/{telegram_id}")
+async def purchase_premium(telegram_id: int, body: PremiumBuy):
+    return await buy_premium_subscription(telegram_id, body.period)
 
 
 @app.get("/api/vpn")
@@ -141,6 +151,7 @@ async def admin_get_users(telegram_id: int):
             "clicks_per_click": u.clicks_per_click,
             "auto_clicks_per_second": u.auto_clicks_per_second,
             "is_admin": u.is_admin, "is_premium": u.is_premium,
+            "premium_until": u.premium_until.isoformat() if u.premium_until else None,
             "created_at": u.created_at.isoformat()
         }
         for u in users

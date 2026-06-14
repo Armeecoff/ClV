@@ -8,7 +8,12 @@ import asyncio
 
 
 async def start_bot():
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    if not BOT_TOKEN:
+        return
+    try:
+        bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    except Exception:
+        return
     dp = Dispatcher()
     dp.include_router(start.router)
     dp.include_router(admin.router)

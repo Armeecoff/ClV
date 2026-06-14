@@ -29,6 +29,7 @@ class User(Base):
     auto_clicks_per_second = Column(Float, default=0.0, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     is_premium = Column(Boolean, default=False, nullable=False)
+    premium_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")

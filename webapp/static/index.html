@@ -34,7 +34,13 @@ body.theme-sakura { --bg:#1a0a12; --bg2:#25101a; --bg3:#2e1520; --border:#5a2040
 body.theme-hacker { --bg:#000800; --bg2:#001200; --bg3:#001a00; --border:#004000; --accent:#00ff41; --accent2:#39ff14; --accent3:#00cc33; --text:#00ff41; --text2:#009922; }
 body.theme-ocean { --bg:#000d1a; --bg2:#001525; --bg3:#001e33; --border:#003366; --accent:#0088ff; --accent2:#33aaff; --accent3:#0055cc; --bubble-opacity:1; }
 body.theme-sunset { --bg:#1a0800; --bg2:#251200; --bg3:#301800; --border:#5a3000; --accent:#ff6600; --accent2:#ff9933; --accent3:#cc4400; }
-body.theme-system { color-scheme: light dark; }
+body.theme-system   { color-scheme: light dark; }
+body.theme-neon     { --bg:#000a14; --bg2:#001020; --bg3:#001a2e; --border:#003366; --accent:#00f5ff; --accent2:#ff00ff; --accent3:#00aaff; }
+body.theme-inferno  { --bg:#0a0000; --bg2:#150300; --bg3:#1e0500; --border:#500000; --accent:#ff4500; --accent2:#ff8c00; --accent3:#ff2000; --text:#ffd0a0; }
+body.theme-winter   { --bg:#050d1a; --bg2:#0a1525; --bg3:#0f1e33; --border:#1a3a5e; --accent:#80c8ff; --accent2:#aaddff; --accent3:#5aacff; }
+body.theme-aurora   { --bg:#020a10; --bg2:#041520; --bg3:#062030; --border:#0a3040; --accent:#00ff88; --accent2:#00ffcc; --accent3:#00cc66; }
+body.theme-autumn   { --bg:#100800; --bg2:#1a1000; --bg3:#251800; --border:#4a2800; --accent:#e07020; --accent2:#f09030; --accent3:#c05010; }
+body.theme-crystals { --bg:#080510; --bg2:#0f0a20; --bg3:#150f30; --border:#281a50; --accent:#c080ff; --accent2:#e0a0ff; --accent3:#9040ff; }
 
 /* ══ COLORS ══ */
 body.color-red    { --accent:#f04040; --accent2:#ff7070; --accent3:#c02020; }
@@ -82,8 +88,22 @@ body.theme-blackhole #bh-canvas { opacity:1; }
 #wave-canvas { position:fixed; bottom:0; left:0; right:0; height:120px; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
 body.theme-ocean #wave-canvas { opacity:var(--bubble-opacity); }
 
+/* ══ NEW THEMES ══ */
+#neon-canvas    { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-neon #neon-canvas { opacity:1; }
+#inferno-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-inferno #inferno-canvas { opacity:1; }
+#snow-canvas    { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-winter #snow-canvas { opacity:1; }
+#aurora-canvas  { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-aurora #aurora-canvas { opacity:1; }
+#autumn-canvas  { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-autumn #autumn-canvas { opacity:1; }
+#crystal-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0; transition:opacity .4s; }
+body.theme-crystals #crystal-canvas { opacity:1; }
+
 /* ══ PAGES ══ */
-.page { display:none; flex-direction:column; min-height:calc(100vh - var(--nav-h)); padding:16px 16px calc(var(--nav-h)+16px); position:relative; z-index:1; }
+.page { display:none; flex-direction:column; height:calc(100vh - var(--nav-h)); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 16px 80px; position:relative; z-index:1; }
 .page.active { display:flex; }
 
 /* ══ NAV ══ */
@@ -126,6 +146,12 @@ body.theme-ocean #wave-canvas { opacity:var(--bubble-opacity); }
   100% { background:radial-gradient(circle at 35% 35%,#ff8080,#ff0000 60%,#cc0000); }
 }
 .click-btn.skin-color { background:radial-gradient(circle at 35% 35%, var(--accent2), var(--accent) 60%, var(--accent3)); border-color:var(--accent2); }
+.click-btn.skin-gradient { animation:gradientSkin 4s linear infinite; }
+@keyframes gradientSkin {
+  0%,100%{ background:radial-gradient(circle at 35% 35%,#ffdf80,#d4af37 60%,#a07000); border-color:#f5d060; }
+  33%    { background:radial-gradient(circle at 35% 35%,#e080ff,#8040c0 60%,#500080); border-color:#e0a0ff; }
+  66%    { background:radial-gradient(circle at 35% 35%,#80ffee,#00c0a0 60%,#008060); border-color:#80ffee; }
+}
 .click-btn:active { transform:scale(.91); box-shadow:0 0 20px rgba(124,108,247,.3); }
 .click-hint { color:var(--text2); font-size:13px; }
 .autoclk-info { color:var(--accent2); font-size:12px; font-weight:600; }
@@ -197,10 +223,12 @@ select.form-input { cursor:pointer; }
 .theme-btn { border:2px solid var(--border); border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); font-size:11px; }
 .theme-btn.active { border-color:var(--accent); box-shadow:0 0 10px rgba(124,108,247,.3); }
 .theme-btn .t-icon { font-size:22px; margin-bottom:4px; }
-.color-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
-.color-btn { width:100%; aspect-ratio:1; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:all .2s; position:relative; }
-.color-btn.active::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.8); }
-.color-btn.active { border-color:#fff; transform:scale(1.1); }
+.color-grid { display:flex; flex-wrap:wrap; gap:10px; padding:2px 0; }
+.color-btn { width:30px; height:30px; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:all .2s; position:relative; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+.color-btn.active::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.9); }
+.color-btn.active { border-color:#fff; transform:scale(1.18); box-shadow:0 0 10px rgba(255,255,255,.35); }
+.period-btn { border:2px solid var(--border); border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); }
+.period-btn.active { border-color:#d4af37; background:rgba(212,175,55,.13); }
 .skin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
 .skin-card { border:2px solid var(--border); border-radius:12px; padding:12px; text-align:center; cursor:pointer; transition:all .2s; background:var(--bg3); }
 .skin-card.active { border-color:var(--accent); }
@@ -256,6 +284,12 @@ select.form-input { cursor:pointer; }
 <canvas id="matrix-canvas"></canvas>
 <canvas id="sunset-canvas"></canvas>
 <canvas id="sakura-canvas"></canvas>
+<canvas id="neon-canvas"></canvas>
+<canvas id="inferno-canvas"></canvas>
+<canvas id="snow-canvas"></canvas>
+<canvas id="aurora-canvas"></canvas>
+<canvas id="autumn-canvas"></canvas>
+<canvas id="crystal-canvas"></canvas>
 
 <!-- ══ PAGES ══ -->
 
@@ -285,6 +319,7 @@ select.form-input { cursor:pointer; }
     <div><div class="balance-label">💰 Баланс</div><div class="balance-value" id="shop-balance">0</div></div>
     <span class="cpc-badge" id="shop-cpc">+1/клик</span>
   </div>
+  <div id="shop-premium-section"></div>
   <div id="upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
 </div>
 
@@ -306,7 +341,7 @@ select.form-input { cursor:pointer; }
   <div class="profile-id" id="profile-id">ID: —</div>
   <div id="premium-banner" style="display:none;margin-top:12px" class="premium-banner">
     <div class="icon">👑</div>
-    <div><div style="font-weight:700;color:#f5d060">Premium подписка активна</div><div style="font-size:11px;color:var(--text2)">+10% к кликам · Эксклюзивные улучшения</div></div>
+    <div><div style="font-weight:700;color:#f5d060">Premium подписка активна</div><div style="font-size:11px;color:var(--text2)">+10% к кликам · ×1.5 авто · VPN −10% · Градиент скин</div></div>
   </div>
   <div class="stat-grid">
     <div class="stat-card"><div class="stat-val" id="stat-balance">0</div><div class="stat-lbl">💰 Баланс</div></div>
@@ -338,6 +373,12 @@ select.form-input { cursor:pointer; }
       <div class="theme-btn" onclick="setTheme('hacker')" id="tbtn-hacker"><div class="t-icon">💻</div>Хакер</div>
       <div class="theme-btn" onclick="setTheme('ocean')" id="tbtn-ocean"><div class="t-icon">🌊</div>Океан</div>
       <div class="theme-btn" onclick="setTheme('sunset')" id="tbtn-sunset"><div class="t-icon">🌅</div>Закат</div>
+      <div class="theme-btn" onclick="setTheme('neon')" id="tbtn-neon"><div class="t-icon">⚡</div>Неон</div>
+      <div class="theme-btn" onclick="setTheme('inferno')" id="tbtn-inferno"><div class="t-icon">🔥</div>Инферно</div>
+      <div class="theme-btn" onclick="setTheme('winter')" id="tbtn-winter"><div class="t-icon">❄️</div>Зима</div>
+      <div class="theme-btn" onclick="setTheme('aurora')" id="tbtn-aurora"><div class="t-icon">🌌</div>Аврора</div>
+      <div class="theme-btn" onclick="setTheme('autumn')" id="tbtn-autumn"><div class="t-icon">🍂</div>Осень</div>
+      <div class="theme-btn" onclick="setTheme('crystals')" id="tbtn-crystals"><div class="t-icon">💎</div>Кристаллы</div>
     </div>
   </div>
 
@@ -378,7 +419,7 @@ select.form-input { cursor:pointer; }
         <div class="skin-price">Использует цвет</div>
       </div>
       <div class="skin-card locked" id="skin-rainbow" onclick="buySkin('rainbow')">
-        <div class="skin-preview" style="animation:rainbowBg 2s linear infinite;border-radius:50%;width:40px;height:40px;line-height:40px;text-align:center;margin:0 auto 6px">💎</div>
+        <div class="skin-preview" style="animation:rainbowBg 2s linear infinite;border-radius:50%;width:40px;height:40px;margin:0 auto 6px"></div>
         <div class="skin-name">🌈 Радужный</div>
         <div class="skin-price">7 500 кликов</div>
       </div>
@@ -386,6 +427,11 @@ select.form-input { cursor:pointer; }
         <div class="skin-preview" id="custom-skin-preview">🎮</div>
         <div class="skin-name">🎨 Кастомный</div>
         <div class="skin-price">10 000 кликов</div>
+      </div>
+      <div class="skin-card locked" id="skin-gradient" onclick="setSkin('gradient')" style="grid-column:1/-1">
+        <div class="skin-preview" style="animation:gradientSkin 3s linear infinite;border-radius:50%;width:44px;height:44px;margin:0 auto 6px"></div>
+        <div class="skin-name">✨ Градиент Premium</div>
+        <div class="skin-price" id="skin-gradient-price">👑 Только для Premium</div>
       </div>
     </div>
   </div>
@@ -572,6 +618,10 @@ async function init() {
     if (S.isPremium) {
       document.getElementById('premium-banner').style.display = 'flex';
       document.getElementById('stat-premium-card').style.display = 'block';
+      if (!S.ownedSkins.includes('gradient')) {
+        S.ownedSkins.push('gradient');
+        localStorage.setItem('ownedSkins', JSON.stringify(S.ownedSkins));
+      }
     }
     if (S.acps > 0) startAutoClick();
   } catch(e) { showToast('Ошибка загрузки', 'error'); }
@@ -602,19 +652,19 @@ function navigate(page) {
   document.getElementById(`page-${page}`).classList.add('active');
   document.getElementById(`nav-${page}`).classList.add('active');
   S.page = page;
-  if (page === 'shop')    loadUpgrades();
+  if (page === 'shop')    { loadUpgrades(); renderPremiumSection(); }
   if (page === 'vpn')     loadVPN();
   if (page === 'profile') loadProfile();
   if (page === 'admin')   { switchAdminTab('vpn'); }
 }
 
-// ══ CLICKER (rate limit: max 2/sec) ══
+// ══ CLICKER (rate limit: max 10/sec) ══
 let _clickTimes = [];
 document.getElementById('click-btn').addEventListener('click', function(e) {
   if (!S.user) return;
   const now = Date.now();
   _clickTimes = _clickTimes.filter(t => now - t < 1000);
-  if (_clickTimes.length >= 2) return;
+  if (_clickTimes.length >= 10) return;
   _clickTimes.push(now);
   S.balance += S.cpc; S.totalClicks += 1;
   pendingClicks++;
@@ -881,26 +931,36 @@ function setSkin(name) {
 
 function applySkin(name, save=true) {
   const btn = document.getElementById('click-btn');
-  btn.classList.remove('skin-rainbow','skin-color');
+  btn.classList.remove('skin-rainbow','skin-color','skin-gradient');
   if (name === 'rainbow') btn.classList.add('skin-rainbow');
   else if (name === 'color') btn.classList.add('skin-color');
+  else if (name === 'gradient') btn.classList.add('skin-gradient');
   if (name === 'custom') btn.textContent = S.customEmoji;
-  else if (name !== 'rainbow' && name !== 'color') btn.textContent = '💎';
+  else if (!['rainbow','color','gradient'].includes(name)) btn.textContent = '💎';
 }
 
 function updateSkinUI() {
-  ['default','color','rainbow','custom'].forEach(s => {
+  ['default','color','rainbow','custom','gradient'].forEach(s => {
     const card = document.getElementById(`skin-${s}`);
     if (!card) return;
     card.classList.remove('active','locked');
     if (S.skin === s) card.classList.add('active');
     else if (!S.ownedSkins.includes(s)) card.classList.add('locked');
   });
+  const gp = document.getElementById('skin-gradient-price');
+  if (gp) gp.textContent = S.ownedSkins.includes('gradient') ? 'Разблокировано ✅' : '👑 Только для Premium';
 }
 
 async function buySkin(name) {
   if (!S.user) return;
   if (S.ownedSkins.includes(name)) { setSkin(name); return; }
+  if (name === 'gradient') {
+    if (!S.isPremium) { showToast('👑 Доступно только с Premium подпиской','error'); return; }
+    S.ownedSkins.push('gradient');
+    localStorage.setItem('ownedSkins', JSON.stringify(S.ownedSkins));
+    showToast('✨ Градиентный скин разблокирован!','success');
+    setSkin('gradient'); updateSkinUI(); return;
+  }
   const prices = {rainbow:7500, custom:10000};
   const price = prices[name];
   if (!price) return;
@@ -943,6 +1003,77 @@ function applyCustomEmoji() {
   closeModal('modal-custom-skin');
 }
 
+// ══ PREMIUM SHOP ══
+function renderPremiumSection() {
+  const c = document.getElementById('shop-premium-section');
+  if (!c) return;
+  const periods = [
+    {key:'month',   label:'1 мес.',  days:'30 дней',  price:20000},
+    {key:'3months', label:'3 мес.',  days:'90 дней',  price:50000},
+    {key:'6months', label:'6 мес.',  days:'180 дней', price:85000},
+    {key:'year',    label:'1 год',   days:'365 дней', price:150000},
+  ];
+  if (S.isPremium) {
+    c.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(212,175,55,.18),rgba(100,50,180,.1));border:1px solid #8a6000;border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:34px">👑</div>
+      <div><div style="font-weight:800;color:#f5d060;font-size:15px">Premium активен!</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">+10% к кликам · ×1.5 авто-клики · VPN −10% · Градиентный скин · Эксклюзивные улучшения</div></div>
+    </div>`;
+    return;
+  }
+  c.innerHTML = `<div class="card" style="background:linear-gradient(135deg,rgba(212,175,55,.1),rgba(80,30,150,.08));border-color:#6a4800;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="font-size:36px">👑</div>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#f5d060">Premium подписка</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px">+10% к кликам · ×1.5 авто-клики · VPN −10% · Градиент скин</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      ${periods.map(p=>`<div class="period-btn${p.key==='month'?' active':''}" data-pkey="${p.key}" data-pprice="${p.price}" onclick="selectPremiumPeriod(this,'${p.key}',${p.price})">
+        <div style="font-size:12px;font-weight:700">${p.label}</div>
+        <div style="font-size:10px;color:var(--text2)">${p.days}</div>
+        <div style="font-size:12px;color:#f5d060;margin-top:2px">💰 ${p.price.toLocaleString('ru')}</div>
+      </div>`).join('')}
+    </div>
+    <button class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#d4af37,#b8860b);font-size:14px;padding:11px" onclick="buyPremium()">
+      👑 Купить Premium
+    </button>
+  </div>`;
+  window._premiumPeriod = 'month';
+  window._premiumPrice  = 20000;
+}
+
+function selectPremiumPeriod(el, key, price) {
+  window._premiumPeriod = key;
+  window._premiumPrice  = price;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function buyPremium() {
+  if (!S.user) return;
+  const period = window._premiumPeriod || 'month';
+  const price  = window._premiumPrice  || 20000;
+  if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error'); return; }
+  try {
+    const data = await fetch(`/api/premium/buy/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({period})
+    }).then(r=>r.json());
+    if (data.ok) {
+      S.balance = data.new_balance; S.isPremium = true;
+      updateBalanceUI();
+      document.getElementById('premium-banner').style.display = 'flex';
+      document.getElementById('stat-premium-card').style.display = 'block';
+      const firstName = S.user?.first_name || S.user?.username || 'Пользователь';
+      document.getElementById('profile-name').innerHTML = firstName + '<span class="crown">👑</span>';
+      renderPremiumSection();
+      showToast('👑 Premium активирован!', 'success');
+    } else { showToast(`❌ ${data.error}`, 'error'); }
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
 // ══ BG EFFECTS ══
 function initBgEffects() {
   stopBgEffects();
@@ -953,6 +1084,12 @@ function initBgEffects() {
   if (t === 'ocean')     startOcean();
   if (t === 'hacker')    startHacker();
   if (t === 'sunset')    startSunset();
+  if (t === 'neon')      startNeon();
+  if (t === 'inferno')   startInferno();
+  if (t === 'winter')    startWinter();
+  if (t === 'aurora')    startAurora();
+  if (t === 'autumn')    startAutumn();
+  if (t === 'crystals')  startCrystals();
 }
 
 let _bgTimers = [];
@@ -963,7 +1100,8 @@ function stopBgEffects() {
   _bgRAFs.forEach(id => cancelAnimationFrame(id));
   _bgRAFs = [];
   document.querySelectorAll('.sakura-petal,.bubble').forEach(e=>e.remove());
-  ['stars-canvas','matrix-canvas','sunset-canvas','sakura-canvas'].forEach(id => {
+  ['stars-canvas','matrix-canvas','sunset-canvas','sakura-canvas','bh-canvas',
+   'neon-canvas','inferno-canvas','snow-canvas','aurora-canvas','autumn-canvas','crystal-canvas'].forEach(id => {
     const c = document.getElementById(id);
     if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); }
   });
@@ -1030,52 +1168,105 @@ function startStars() {
   _bgTimers.push({_stop:()=>{running=false;}});
 }
 
-// BLACK HOLE
+// ══ BLACK HOLE (enhanced) ══
 function startBlackHole() {
   const c = document.getElementById('bh-canvas');
   c.width = window.innerWidth; c.height = window.innerHeight;
   const ctx = c.getContext('2d');
-  let angle = 0;
-  function draw() {
-    ctx.clearRect(0,0,c.width,c.height);
-    const cx = c.width/2, cy = c.height*.38;
-    // Dark glow
-    const grd = ctx.createRadialGradient(cx,cy,20,cx,cy,200);
-    grd.addColorStop(0,'rgba(80,0,160,.6)'); grd.addColorStop(.5,'rgba(20,0,60,.3)'); grd.addColorStop(1,'transparent');
-    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(cx,cy,200,0,Math.PI*2); ctx.fill();
-    // Core
-    ctx.beginPath(); ctx.arc(cx,cy,28,0,Math.PI*2);
-    ctx.fillStyle = '#000000'; ctx.fill();
-    // Rings
-    const rings = [
-      {r:55, w:6, color:'rgba(120,60,255,', a:.8, sp:.012},
-      {r:80, w:4, color:'rgba(180,100,255,', a:.5, sp:-.008},
-      {r:110,w:3, color:'rgba(220,150,255,', a:.3, sp:.005},
-      {r:148,w:2, color:'rgba(255,200,255,', a:.15,sp:-.003},
-    ];
-    rings.forEach((ring, i) => {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle * ring.sp * 60 + i);
-      ctx.scale(1, 0.28);
-      ctx.beginPath();
-      ctx.arc(0,0,ring.r,0,Math.PI*2);
-      ctx.strokeStyle = ring.color + ring.a + ')';
-      ctx.lineWidth = ring.w;
-      ctx.stroke();
-      ctx.restore();
-    });
-    // Accretion particles
-    for (let i=0;i<8;i++) {
-      const a2 = angle*.8 + i * (Math.PI*2/8);
-      const r2 = 60 + Math.sin(angle*3+i)*8;
-      const px = cx + Math.cos(a2)*r2, py = cy + Math.sin(a2)*r2*.28;
-      ctx.beginPath(); ctx.arc(px,py,1.5,0,Math.PI*2);
-      ctx.fillStyle=`rgba(200,150,255,${.5+.3*Math.sin(angle+i)})`; ctx.fill();
-    }
-    angle += 0.008;
+  const W = c.width, H = c.height;
+  const cx = W/2, cy = H * 0.36;
+  let t = 0;
+
+  const stars = Array.from({length:200}, () => ({
+    x: Math.random()*W, y: Math.random()*H,
+    r: Math.random()*1.4+0.2,
+    a: Math.random()*0.75+0.25,
+    da: (Math.random()*0.008+0.002)*(Math.random()<.5?1:-1)
+  }));
+
+  function mkParticle() {
+    const a = Math.random()*Math.PI*2;
+    const d = 130 + Math.random()*220;
+    return {
+      a, d,
+      speed: 0.011 + Math.random()*0.018,
+      size: Math.random()*1.8+0.4,
+      warm: Math.random() < 0.65,
+      alpha: 0.5 + Math.random()*0.5
+    };
   }
-  const t = setInterval(draw, 30); _bgTimers.push(t);
+  const particles = Array.from({length:80}, mkParticle);
+
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.clearRect(0,0,W,H);
+
+    stars.forEach(s => {
+      s.a += s.da; if (s.a<=0.05||s.a>=1) s.da*=-1; s.a=Math.max(.05,Math.min(1,s.a));
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(210,220,255,${s.a})`; ctx.fill();
+    });
+
+    // Gravitational lensing glow
+    const lens = ctx.createRadialGradient(cx,cy,42,cx,cy,320);
+    lens.addColorStop(0,'rgba(80,0,160,0)');
+    lens.addColorStop(0.3,'rgba(130,40,220,0.11)');
+    lens.addColorStop(0.6,'rgba(70,0,140,0.06)');
+    lens.addColorStop(1,'transparent');
+    ctx.fillStyle=lens; ctx.beginPath(); ctx.arc(cx,cy,320,0,Math.PI*2); ctx.fill();
+
+    // Accretion disk
+    ctx.save(); ctx.translate(cx,cy); ctx.scale(1,0.28);
+    [
+      [175,10,`255,255,215`,0.42+0.1*Math.sin(t*1.9)],
+      [148,11,`255,210,110`,0.38+0.1*Math.sin(t*1.4+1)],
+      [120,12,`255,145,45`, 0.32+0.09*Math.sin(t*1.6+2)],
+      [95, 11,`230,80,20`,  0.25+0.08*Math.sin(t*1.2+3)],
+      [73, 9, `165,35,8`,   0.16+0.06*Math.sin(t*1.0+4)],
+    ].forEach(([r,w,col,a]) => {
+      ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${col},${a})`; ctx.lineWidth=w; ctx.stroke();
+    });
+    ctx.restore();
+
+    // Spiral particles
+    for (let i=0;i<particles.length;i++) {
+      const p=particles[i];
+      p.d -= p.speed * Math.sqrt(p.d) * 0.08;
+      p.a += p.speed * (1 + 55/Math.max(p.d,8));
+      if (p.d<30) { Object.assign(particles[i],mkParticle()); continue; }
+      const px=cx+Math.cos(p.a)*p.d, py=cy+Math.sin(p.a)*p.d*0.28;
+      const alpha=Math.min(p.alpha,(p.d-30)/75);
+      ctx.beginPath(); ctx.arc(px,py,p.size,0,Math.PI*2);
+      ctx.fillStyle=p.warm?`rgba(255,${110+Math.floor(p.d*.5)},${30+Math.floor(p.d*.2)},${alpha})`:`rgba(200,150,255,${alpha})`; ctx.fill();
+    }
+
+    // Relativistic jets
+    [[cy-35,-1],[cy+35,1]].forEach(([sy,dir])=>{
+      const jg=ctx.createLinearGradient(cx,sy,cx,sy+dir*190);
+      jg.addColorStop(0,'rgba(170,90,255,0.6)'); jg.addColorStop(0.35,'rgba(110,45,200,0.22)'); jg.addColorStop(1,'transparent');
+      ctx.fillStyle=jg; ctx.beginPath();
+      ctx.moveTo(cx-5,sy); ctx.lineTo(cx+5,sy); ctx.lineTo(cx+2,sy+dir*190); ctx.lineTo(cx-2,sy+dir*190);
+      ctx.closePath(); ctx.fill();
+    });
+
+    // Event horizon
+    const ev=ctx.createRadialGradient(cx,cy,0,cx,cy,43);
+    ev.addColorStop(0,'#000000'); ev.addColorStop(0.78,'#000000'); ev.addColorStop(1,'rgba(45,0,90,0.75)');
+    ctx.fillStyle=ev; ctx.beginPath(); ctx.arc(cx,cy,43,0,Math.PI*2); ctx.fill();
+
+    // Photon ring
+    ctx.beginPath(); ctx.arc(cx,cy,51,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(195,135,255,${0.3+0.14*Math.sin(t*4)})`; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,56,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(130,80,210,${0.1+0.06*Math.sin(t*4+1)})`; ctx.lineWidth=7; ctx.stroke();
+
+    t += 0.022;
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
 }
 
 // ══ HACKER (Matrix rain) ══
@@ -1165,72 +1356,105 @@ function startSunset() {
   _bgTimers.push({_stop:()=>{running=false;}});
 }
 
-// ══ SAKURA (canvas tree + falling petals from branches) ══
+// ══ SAKURA (beautiful tree + falling petals) ══
 function startSakura() {
   const c = document.getElementById('sakura-canvas');
   c.width = window.innerWidth; c.height = window.innerHeight;
   const ctx = c.getContext('2d');
   const W = c.width, H = c.height;
   const branchTips = [];
-  function drawBranch(x, y, angle, len, depth) {
-    if (depth === 0 || len < 5) return;
-    const x2 = x + Math.cos(angle) * len;
-    const y2 = y + Math.sin(angle) * len;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2);
-    ctx.strokeStyle = depth > 3 ? '#5a2040' : '#8a3060';
-    ctx.lineWidth = depth * .9; ctx.stroke();
-    if (depth <= 2) { branchTips.push({x:x2, y:y2}); }
-    drawBranch(x2, y2, angle - 0.4 - Math.random()*.25, len*.68, depth-1);
-    drawBranch(x2, y2, angle + 0.4 + Math.random()*.25, len*.65, depth-1);
-    if (depth > 2) drawBranch(x2, y2, angle + (Math.random()-.5)*.3, len*.6, depth-2);
+
+  // Background gradient
+  const bgGrd = ctx.createLinearGradient(0,0,0,H);
+  bgGrd.addColorStop(0,'#0a0510'); bgGrd.addColorStop(0.5,'#180815'); bgGrd.addColorStop(1,'#250e1a');
+  ctx.fillStyle='#120819'; ctx.fillRect(0,0,W,H);
+
+  // Moon
+  const mx=W*0.76, my=H*0.14;
+  const moonGlow=ctx.createRadialGradient(mx,my,0,mx,my,90);
+  moonGlow.addColorStop(0,'rgba(255,235,190,0.14)'); moonGlow.addColorStop(0.5,'rgba(255,220,160,0.07)'); moonGlow.addColorStop(1,'transparent');
+  ctx.fillStyle=moonGlow; ctx.beginPath(); ctx.arc(mx,my,90,0,Math.PI*2); ctx.fill();
+  const moonGrd=ctx.createRadialGradient(mx-6,my-5,0,mx,my,20);
+  moonGrd.addColorStop(0,'#fffee8'); moonGrd.addColorStop(1,'#f0d898');
+  ctx.fillStyle=moonGrd; ctx.beginPath(); ctx.arc(mx,my,20,0,Math.PI*2); ctx.fill();
+
+  // Stars
+  for(let i=0;i<90;i++){
+    const sx=Math.random()*W,sy=Math.random()*H*0.65,sr=Math.random()*1.1+0.15;
+    ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,215,200,${0.25+Math.random()*0.55})`; ctx.fill();
   }
-  ctx.fillStyle = '#1a0a12'; ctx.fillRect(0, 0, W, H);
-  const treeX = W * 0.5, treeY = H;
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  drawBranch(treeX, treeY, -Math.PI/2, H*.38, 7);
-  for (let t of branchTips) {
-    for (let j=0; j<8; j++) {
-      const bx = t.x + (Math.random()-0.5)*30;
-      const by = t.y + (Math.random()-0.5)*20;
-      ctx.beginPath(); ctx.arc(bx, by, 4+Math.random()*5, 0, Math.PI*2);
-      const a = 0.4+Math.random()*.5;
-      ctx.fillStyle = `rgba(${220+Math.floor(Math.random()*35)},${100+Math.floor(Math.random()*60)},${140+Math.floor(Math.random()*60)},${a})`;
-      ctx.fill();
+
+  // Ground glow
+  const fgGrd=ctx.createRadialGradient(W*0.5,H,0,W*0.5,H,W*0.55);
+  fgGrd.addColorStop(0,'rgba(190,60,100,0.1)'); fgGrd.addColorStop(0.55,'rgba(130,25,55,0.05)'); fgGrd.addColorStop(1,'transparent');
+  ctx.fillStyle=fgGrd; ctx.fillRect(0,0,W,H);
+
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  function drawBranch(x,y,angle,len,depth) {
+    if(depth===0||len<4) return;
+    const x2=x+Math.cos(angle)*len, y2=y+Math.sin(angle)*len;
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x2,y2);
+    const girth=Math.max(0.6,depth*1.15);
+    const r=Math.min(255,75+(8-depth)*22), g=Math.min(255,28+(8-depth)*9), b=Math.min(255,35+(8-depth)*14);
+    ctx.strokeStyle=`rgb(${r},${g},${b})`; ctx.lineWidth=girth; ctx.stroke();
+    if(depth<=2) branchTips.push({x:x2,y:y2});
+    const spread=0.32+Math.random()*0.22;
+    drawBranch(x2,y2,angle-spread,len*(0.66+Math.random()*.08),depth-1);
+    drawBranch(x2,y2,angle+spread*0.85,len*(0.63+Math.random()*.08),depth-1);
+    if(depth>3&&Math.random()>0.38) drawBranch(x2,y2,angle+(Math.random()-.5)*0.45,len*(0.5+Math.random()*.12),depth-2);
+  }
+  drawBranch(W*0.5,H,-Math.PI/2,H*0.4,8);
+
+  // Blossom clusters at tips
+  for(const tip of branchTips) {
+    const count=6+Math.floor(Math.random()*8);
+    for(let j=0;j<count;j++) {
+      const bx=tip.x+(Math.random()-.5)*38, by=tip.y+(Math.random()-.5)*24;
+      const br=3.5+Math.random()*5.5;
+      const numP=5, pa0=Math.random()*Math.PI*2;
+      for(let p=0;p<numP;p++) {
+        const pa=pa0+(p/numP)*Math.PI*2;
+        const px=bx+Math.cos(pa)*br*0.68, py=by+Math.sin(pa)*br*0.68;
+        ctx.beginPath(); ctx.ellipse(px,py,br*0.58,br*0.38,pa,0,Math.PI*2);
+        const pr=208+Math.floor(Math.random()*47), pg=95+Math.floor(Math.random()*65), pb2=130+Math.floor(Math.random()*55);
+        ctx.fillStyle=`rgba(${pr},${pg},${pb2},${0.42+Math.random()*.48})`; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(bx,by,br*0.22,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,195,210,0.65)`; ctx.fill();
     }
   }
-  const petals = [];
-  function spawnPetal() {
-    if (!branchTips.length) return;
-    const tip = branchTips[Math.floor(Math.random()*branchTips.length)];
-    petals.push({
-      x: tip.x + (Math.random()-0.5)*40,
-      y: tip.y + (Math.random()-0.5)*20,
-      vx: (Math.random()-0.5)*1.2,
-      vy: 0.6 + Math.random()*1.2,
-      rot: Math.random()*Math.PI*2,
-      vrot: (Math.random()-0.5)*.08,
-      a: 0.9, r: 4+Math.random()*4,
-      col: `${210+Math.floor(Math.random()*45)},${100+Math.floor(Math.random()*60)},${140+Math.floor(Math.random()*50)}`
-    });
+
+  // Falling petals
+  const petals=[];
+  function mkPetal() {
+    if(!branchTips.length) return null;
+    const tip=branchTips[Math.floor(Math.random()*branchTips.length)];
+    return {
+      x:tip.x+(Math.random()-.5)*55, y:tip.y+(Math.random()-.5)*30,
+      vx:(Math.random()-.5)*1.5, vy:0.45+Math.random()*1.5,
+      rot:Math.random()*Math.PI*2, vrot:(Math.random()-.5)*0.1,
+      a:0.85+Math.random()*0.15, da:0.0018+Math.random()*0.003,
+      r:3+Math.random()*5, sway:Math.random()*0.55,
+      rc:208+Math.floor(Math.random()*47), gc:90+Math.floor(Math.random()*70), bc:128+Math.floor(Math.random()*55)
+    };
   }
-  const st = setInterval(spawnPetal, 120); _bgTimers.push(st);
-  let running = true;
+  const si=setInterval(()=>{ if(petals.length<130){const p=mkPetal();if(p)petals.push(p);} },70); _bgTimers.push(si);
+
+  let running=true;
   function animate() {
-    if (!running) return;
-    ctx.fillStyle = 'rgba(26,10,18,0.18)';
-    ctx.fillRect(0, 0, W, H);
-    for (let i = petals.length-1; i >= 0; i--) {
-      const p = petals[i];
-      p.x += p.vx + Math.sin(p.rot*.5)*0.4;
-      p.y += p.vy;
-      p.rot += p.vrot;
-      p.a -= 0.003;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, p.r, p.r*0.65, 0, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(${p.col},${p.a})`; ctx.fill();
+    if(!running) return;
+    ctx.fillStyle='rgba(18,8,25,0.07)'; ctx.fillRect(0,0,W,H);
+    for(let i=petals.length-1;i>=0;i--) {
+      const p=petals[i];
+      p.x+=p.vx+Math.sin(p.rot*0.4)*p.sway;
+      p.y+=p.vy; p.rot+=p.vrot; p.a-=p.da;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.beginPath(); ctx.ellipse(0,0,p.r,p.r*0.6,0,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${p.rc},${p.gc},${p.bc},${Math.max(0,p.a)})`; ctx.fill();
       ctx.restore();
-      if (p.a <= 0 || p.y > H+20) petals.splice(i, 1);
+      if(p.a<=0||p.y>H+30) petals.splice(i,1);
     }
     _bgRAFs.push(requestAnimationFrame(animate));
   }
@@ -1278,6 +1502,291 @@ function startOcean() {
     wt += 0.04;
   }
   const wt2 = setInterval(drawWave, 30); _bgTimers.push(wt2);
+}
+
+// ══ NEON (cyberpunk rain + grid) ══
+function startNeon() {
+  const c = document.getElementById('neon-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const cols = ['#00f5ff','#ff00ff','#00aaff','#ff00aa','#ffffff'];
+  const drops = Array.from({length:Math.floor(W/18)}, () => ({
+    x: Math.random()*W, y: Math.random()*H,
+    speed: 2+Math.random()*5,
+    len: 40+Math.random()*120,
+    col: cols[Math.floor(Math.random()*cols.length)],
+    a: 0.4+Math.random()*0.6
+  }));
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.fillStyle = 'rgba(0,10,20,0.18)'; ctx.fillRect(0,0,W,H);
+    // Grid
+    ctx.strokeStyle = 'rgba(0,245,255,0.04)'; ctx.lineWidth = 1;
+    for (let x=0; x<W; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y=0; y<H; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    drops.forEach(d => {
+      const g = ctx.createLinearGradient(d.x,d.y,d.x,d.y+d.len);
+      g.addColorStop(0,'transparent'); g.addColorStop(0.6,d.col); g.addColorStop(1,'white');
+      ctx.strokeStyle = g; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x,d.y+d.len); ctx.stroke();
+      d.y += d.speed;
+      if (d.y > H+d.len) { d.y = -d.len; d.x = Math.random()*W; }
+    });
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
+}
+
+// ══ INFERNO (fire particles) ══
+function startInferno() {
+  const c = document.getElementById('inferno-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  function mkEmber() {
+    return {
+      x: Math.random()*W, y: H + 20,
+      vx: (Math.random()-.5)*2.5, vy: -(1.5+Math.random()*4),
+      r: 2+Math.random()*6, a: 0.9+Math.random()*.1, life: 1,
+      decay: 0.005+Math.random()*0.015,
+      warm: Math.random()>.2
+    };
+  }
+  const embers = Array.from({length:140}, mkEmber).map(e => { e.y -= Math.random()*H; return e; });
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.fillStyle='rgba(10,0,0,0.15)'; ctx.fillRect(0,0,W,H);
+    const glow = ctx.createLinearGradient(0,H*0.7,0,H);
+    glow.addColorStop(0,'transparent'); glow.addColorStop(1,'rgba(255,60,0,0.25)');
+    ctx.fillStyle=glow; ctx.fillRect(0,0,W,H);
+    embers.forEach((e,i) => {
+      e.x += e.vx + Math.sin(e.life*8+i)*.5; e.y += e.vy; e.life -= e.decay; e.r *= 0.998;
+      if (e.life <= 0 || e.y < -20) Object.assign(embers[i], mkEmber());
+      const t = e.life;
+      const rc = e.warm ? `${Math.floor(200+t*55)},${Math.floor(t*180)},0` : `${Math.floor(255)},${Math.floor(150+t*80)},${Math.floor(t*50)}`;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r*t, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${rc},${e.a*t})`; ctx.fill();
+      if (e.r > 3) {
+        const gg = ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,e.r*2.5);
+        gg.addColorStop(0,`rgba(255,180,0,${0.15*t})`); gg.addColorStop(1,'transparent');
+        ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(e.x,e.y,e.r*2.5,0,Math.PI*2); ctx.fill();
+      }
+    });
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
+}
+
+// ══ WINTER (snowflakes) ══
+function startWinter() {
+  const c = document.getElementById('snow-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  function mkFlake() {
+    return {
+      x: Math.random()*W, y: -10,
+      r: 1.5+Math.random()*5, speed: 0.5+Math.random()*2.5,
+      drift: (Math.random()-.5)*0.8, rot: Math.random()*Math.PI*2,
+      vrot: (Math.random()-.5)*0.03, a: 0.5+Math.random()*.5,
+      arms: Math.random()>.5 ? 6 : 4
+    };
+  }
+  const flakes = Array.from({length:160}, () => { const f=mkFlake(); f.y=Math.random()*H; return f; });
+  let running = true;
+  function drawFlake(x,y,r,rot,arms,a) {
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+    ctx.strokeStyle=`rgba(200,230,255,${a})`; ctx.lineWidth=r*.25; ctx.lineCap='round';
+    for(let i=0;i<arms;i++) {
+      ctx.rotate(Math.PI*2/arms);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-r); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-r*.5); ctx.lineTo(r*.25,-r*.65); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-r*.5); ctx.lineTo(-r*.25,-r*.65); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function draw() {
+    if (!running) return;
+    ctx.fillStyle='rgba(5,13,26,0.12)'; ctx.fillRect(0,0,W,H);
+    flakes.forEach((f,i) => {
+      f.y += f.speed; f.x += f.drift + Math.sin(f.y*.01+i)*.3; f.rot += f.vrot;
+      if (f.y > H+10) Object.assign(flakes[i], mkFlake());
+      if (f.r > 3) drawFlake(f.x,f.y,f.r,f.rot,f.arms,f.a);
+      else { ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fillStyle=`rgba(200,230,255,${f.a})`; ctx.fill(); }
+    });
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
+}
+
+// ══ AURORA BOREALIS ══
+function startAurora() {
+  const c = document.getElementById('aurora-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  let t = 0;
+  const bands = [
+    {col1:'rgba(0,255,136,', col2:'rgba(0,200,100,', phase:0,   speed:0.008, amp:80, yBase:.28},
+    {col1:'rgba(0,255,200,', col2:'rgba(0,150,255,', phase:1.5, speed:0.011, amp:60, yBase:.38},
+    {col1:'rgba(120,0,255,', col2:'rgba(200,0,255,', phase:3.1, speed:0.007, amp:50, yBase:.48},
+    {col1:'rgba(0,200,255,', col2:'rgba(0,100,200,', phase:5.0, speed:0.013, amp:40, yBase:.22},
+  ];
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='rgba(2,10,16,0.2)'; ctx.fillRect(0,0,W,H);
+    bands.forEach(b => {
+      const yc = H*b.yBase + Math.sin(t*b.speed*7+b.phase)*30;
+      const g = ctx.createLinearGradient(0,yc-b.amp,0,yc+b.amp);
+      const a = 0.12+0.08*Math.sin(t*b.speed*13+b.phase);
+      g.addColorStop(0,'transparent'); g.addColorStop(.3,b.col1+a+')'); g.addColorStop(.5,b.col2+(a*.7)+')'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;
+      ctx.beginPath(); ctx.moveTo(0, yc-b.amp);
+      for(let x=0;x<=W;x+=8) {
+        const y = yc + Math.sin(x*.006+t*b.speed+b.phase)*b.amp + Math.sin(x*.013+t*b.speed*.7)*20;
+        ctx.lineTo(x, y);
+      }
+      for(let x=W;x>=0;x-=8) {
+        const y = yc + b.amp + Math.sin(x*.006+t*b.speed+b.phase+.5)*15;
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+    });
+    // Stars
+    if (t === 0 || !startAurora._stars) {
+      startAurora._stars = Array.from({length:80},()=>({x:Math.random()*W,y:Math.random()*H*.55,r:Math.random()*1.2+.2,a:Math.random()}));
+    }
+    startAurora._stars.forEach(s => {
+      s.a += (Math.random()-.5)*.04; s.a = Math.max(.1,Math.min(.9,s.a));
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(180,220,255,${s.a})`; ctx.fill();
+    });
+    t++;
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
+}
+
+// ══ AUTUMN (falling leaves) ══
+function startAutumn() {
+  const c = document.getElementById('autumn-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const leafCols = [
+    [220,70,20],[200,100,10],[180,50,5],[230,120,30],[160,80,10],
+    [200,150,20],[240,90,15],[170,60,25]
+  ];
+  function mkLeaf() {
+    const col = leafCols[Math.floor(Math.random()*leafCols.length)];
+    return {
+      x: Math.random()*W, y: -20,
+      vx: (Math.random()-.5)*2, vy: 0.8+Math.random()*2.5,
+      rot: Math.random()*Math.PI*2, vrot: (Math.random()-.5)*.08,
+      rx: 8+Math.random()*14, ry: 5+Math.random()*9,
+      a: 0.7+Math.random()*.3, col,
+      sway: Math.random()*0.6, swayPhase: Math.random()*Math.PI*2
+    };
+  }
+  const leaves = Array.from({length:80}, () => { const l=mkLeaf(); l.y=Math.random()*H; return l; });
+  let t = 0;
+  let running = true;
+  function draw() {
+    if (!running) return;
+    ctx.fillStyle='rgba(16,8,0,0.1)'; ctx.fillRect(0,0,W,H);
+    leaves.forEach((l,i) => {
+      l.y += l.vy; l.x += l.vx + Math.sin(t*.015+l.swayPhase)*l.sway; l.rot += l.vrot;
+      if (l.y > H+30) Object.assign(leaves[i], mkLeaf());
+      ctx.save(); ctx.translate(l.x,l.y); ctx.rotate(l.rot);
+      const g = ctx.createRadialGradient(0,-l.ry*.2,0,0,0,l.rx);
+      g.addColorStop(0,`rgba(${l.col[0]+30},${l.col[1]+20},${l.col[2]+10},${l.a})`);
+      g.addColorStop(1,`rgba(${l.col[0]},${l.col[1]},${l.col[2]},${l.a*.7})`);
+      ctx.fillStyle=g;
+      ctx.beginPath(); ctx.ellipse(0,0,l.rx,l.ry,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=`rgba(${l.col[0]-30},${l.col[1]-20},${l.col[2]},${l.a*.5})`;
+      ctx.lineWidth=.5; ctx.beginPath(); ctx.moveTo(0,-l.ry); ctx.lineTo(0,l.ry); ctx.stroke();
+      ctx.restore();
+    });
+    t++;
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
+}
+
+// ══ CRYSTALS ══
+function startCrystals() {
+  const c = document.getElementById('crystal-canvas');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const prismCols = ['#c080ff','#80c0ff','#ff80c0','#80ffc0','#ffc080','#e0a0ff','#80ffee'];
+  function mkCrystal() {
+    return {
+      x: Math.random()*W, y: Math.random()*H,
+      r: 20+Math.random()*55, rot: Math.random()*Math.PI,
+      vrot: (Math.random()-.5)*.008, sides: Math.random()>.5 ? 6 : 4,
+      vx: (Math.random()-.5)*.4, vy: (Math.random()-.5)*.4,
+      col: prismCols[Math.floor(Math.random()*prismCols.length)],
+      col2: prismCols[Math.floor(Math.random()*prismCols.length)],
+      a: 0.08+Math.random()*.14, pulsePhase: Math.random()*Math.PI*2
+    };
+  }
+  const crystals = Array.from({length:18}, mkCrystal);
+  let t = 0;
+  let running = true;
+  function drawCrystal(x,y,r,rot,sides,col,col2,a) {
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+    ctx.beginPath();
+    for(let i=0;i<sides;i++) {
+      const angle = (i/sides)*Math.PI*2;
+      const px = Math.cos(angle)*r, py = Math.sin(angle)*r;
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(-r,-r,r,r);
+    g.addColorStop(0,col+(Math.floor(a*255).toString(16).padStart(2,'0')));
+    g.addColorStop(.5,col2+(Math.floor(a*160).toString(16).padStart(2,'0')));
+    g.addColorStop(1,col+(Math.floor(a*80).toString(16).padStart(2,'0')));
+    ctx.fillStyle=g; ctx.fill();
+    ctx.strokeStyle=col+(Math.floor(a*400).toString(16).padStart(2,'0').slice(-2)); ctx.lineWidth=1.5; ctx.stroke();
+    // Inner shine
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(r*.5,-r*.4); ctx.lineTo(r*.2,-r*.7); ctx.closePath();
+    ctx.fillStyle=`rgba(255,255,255,${a*.6})`; ctx.fill();
+    ctx.restore();
+  }
+  function draw() {
+    if (!running) return;
+    ctx.fillStyle='rgba(8,5,16,0.12)'; ctx.fillRect(0,0,W,H);
+    crystals.forEach((cr,i) => {
+      cr.x += cr.vx; cr.y += cr.vy; cr.rot += cr.vrot;
+      if (cr.x < -cr.r||cr.x > W+cr.r) cr.vx *= -1;
+      if (cr.y < -cr.r||cr.y > H+cr.r) cr.vy *= -1;
+      const pa = cr.a + 0.04*Math.sin(t*.03+cr.pulsePhase);
+      drawCrystal(cr.x,cr.y,cr.r,cr.rot,cr.sides,cr.col,cr.col2,pa);
+      // Sparkle at each vertex
+      for(let j=0;j<cr.sides;j+=2) {
+        const a2 = cr.rot+(j/cr.sides)*Math.PI*2;
+        const sx=cr.x+Math.cos(a2)*cr.r, sy=cr.y+Math.sin(a2)*cr.r;
+        const sa = Math.max(0,Math.sin(t*.05+cr.pulsePhase+j))*pa;
+        ctx.beginPath(); ctx.arc(sx,sy,2,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,255,255,${sa})`; ctx.fill();
+      }
+    });
+    t++;
+    _bgRAFs.push(requestAnimationFrame(draw));
+  }
+  draw();
+  _bgTimers.push({_stop:()=>{running=false;}});
 }
 
 // ══ ADMIN ══

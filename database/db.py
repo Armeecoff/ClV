@@ -11,7 +11,6 @@ async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncS
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migrations: add new columns if they don't exist yet
         migrations = [
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS upgrade_type VARCHAR(10) DEFAULT 'click' NOT NULL",
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS auto_click_bonus FLOAT DEFAULT 0.0 NOT NULL",
@@ -19,6 +18,7 @@ async def init_db():
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS clicks_bonus INTEGER DEFAULT 0 NOT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_clicks_per_second FLOAT DEFAULT 0.0 NOT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP DEFAULT NULL",
         ]
         for sql in migrations:
             try:
@@ -49,6 +49,12 @@ async def seed_upgrades():
         await session.commit()
 
 
+async def _expire_premium_if_needed(user: User, session: AsyncSession) -> None:
+    if user.is_premium and user.premium_until and user.premium_until < datetime.utcnow():
+        user.is_premium = False
+        await session.commit()
+
+
 async def get_or_create_user(telegram_id: int, username: str = None, first_name: str = None) -> User:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
@@ -69,13 +75,17 @@ async def get_or_create_user(telegram_id: int, username: str = None, first_name:
                 user.is_admin = True
                 await session.commit()
                 await session.refresh(user)
+            await _expire_premium_if_needed(user, session)
         return user
 
 
 async def get_user_by_telegram_id(telegram_id: int) -> User | None:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        if user:
+            await _expire_premium_if_needed(user, session)
+        return user
 
 
 async def add_click(telegram_id: int) -> dict:
@@ -121,7 +131,7 @@ async def sync_autoclicks(telegram_id: int, amount: float) -> dict:
         if not user:
             return {"balance": 0}
         if user.is_premium:
-            amount *= 1.1
+            amount *= 1.5
         user.balance += amount
         await session.commit()
         return {"balance": user.balance}
@@ -183,6 +193,32 @@ async def buy_upgrade(telegram_id: int, upgrade_id: int) -> dict:
             "new_balance": user.balance,
             "clicks_per_click": user.clicks_per_click,
             "auto_clicks_per_second": user.auto_clicks_per_second
+        }
+
+
+async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
+    prices = {'month': 20000, '3months': 50000, '6months': 85000, 'year': 150000}
+    days_map = {'month': 30, '3months': 90, '6months': 180, 'year': 365}
+    if period not in prices:
+        return {"ok": False, "error": "Неверный период"}
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        cost = prices[period]
+        if user.balance < cost:
+            return {"ok": False, "error": f"Нужно {int(cost):,} кликов, у вас {int(user.balance):,}"}
+        user.balance -= cost
+        now = datetime.utcnow()
+        base = max(user.premium_until or now, now)
+        user.premium_until = base + timedelta(days=days_map[period])
+        user.is_premium = True
+        await session.commit()
+        return {
+            "ok": True,
+            "new_balance": user.balance,
+            "premium_until": user.premium_until.isoformat()
         }
 
 
@@ -261,10 +297,11 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         vpn = vpn_res.scalar_one_or_none()
         if not vpn:
             return {"ok": False, "error": "VPN конфиг не найден или недоступен"}
-        if user.balance < vpn.price_clicks:
-            return {"ok": False, "error": f"Нужно {int(vpn.price_clicks)} кликов"}
+        effective_price = vpn.price_clicks * (0.9 if user.is_premium else 1.0)
+        if user.balance < effective_price:
+            return {"ok": False, "error": f"Нужно {int(effective_price)} кликов"}
 
-        user.balance -= vpn.price_clicks
+        user.balance -= effective_price
         vpn.quantity_left -= 1
         expires_at = now + timedelta(days=vpn.duration_days)
         purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=vpn.price_clicks, expires_at=expires_at)
@@ -340,6 +377,8 @@ async def set_premium(telegram_id: int, is_premium: bool) -> dict:
         if not user:
             return {"ok": False, "error": "Пользователь не найден"}
         user.is_premium = is_premium
+        if not is_premium:
+            user.premium_until = None
         await session.commit()
         return {"ok": True}
 
@@ -380,6 +419,24 @@ async def delete_user(telegram_id: int) -> dict:
         await session.delete(user)
         await session.commit()
         return {"ok": True}
+
+
+async def get_all_click_upgrades() -> list[ClickUpgrade]:
+    async with async_session() as session:
+        result = await session.execute(select(ClickUpgrade))
+        return result.scalars().all()
+
+
+async def get_all_user_upgrades() -> list[UserUpgrade]:
+    async with async_session() as session:
+        result = await session.execute(select(UserUpgrade))
+        return result.scalars().all()
+
+
+async def get_all_vpn_purchases() -> list[VPNPurchase]:
+    async with async_session() as session:
+        result = await session.execute(select(VPNPurchase))
+        return result.scalars().all()
 
 
 async def admin_delete_upgrade(upgrade_id: int) -> dict:
