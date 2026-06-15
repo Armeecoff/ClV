@@ -17,7 +17,12 @@ from database.db import (
     delete_user, buy_premium_subscription,
     get_active_promotions, get_all_promotions, add_promotion,
     delete_promotion, toggle_promotion,
-    get_all_logs, get_user_logs
+    get_all_logs, get_user_logs,
+    get_achievements, check_and_unlock_achievements,
+    admin_get_achievements, admin_add_achievement,
+    admin_edit_achievement, admin_delete_achievement,
+    get_autobuy_settings, save_autobuy_settings,
+    get_user_extended_history
 )
 from config import ADMIN_IDS
 
@@ -126,6 +131,58 @@ async def purchase_vpn(telegram_id: int, vpn_id: int):
 @app.get("/api/vpn/purchases/{telegram_id}")
 async def user_vpn_purchases(telegram_id: int):
     return await get_user_vpn_purchases(telegram_id)
+
+
+# ── Achievements ──────────────────────────────────────────────
+
+@app.get("/api/achievements/{telegram_id}")
+async def list_achievements(telegram_id: int):
+    return await get_achievements(telegram_id)
+
+
+class AchievementCheck(BaseModel):
+    owned_skins: list = []
+    owned_items_count: int = 0
+    themes_tried_count: int = 0
+
+
+@app.post("/api/achievements/check/{telegram_id}")
+async def check_achievements(telegram_id: int, body: AchievementCheck):
+    return await check_and_unlock_achievements(telegram_id, body.dict())
+
+
+# ── Extended History ──────────────────────────────────────────
+
+@app.get("/api/user/history/{telegram_id}")
+async def extended_history(telegram_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user or not user.is_premium:
+        raise HTTPException(status_code=403, detail="Требуется Premium")
+    return await get_user_extended_history(telegram_id, 100)
+
+
+# ── Autobuy Settings ─────────────────────────────────────────
+
+@app.get("/api/user/autobuy/{telegram_id}")
+async def get_autobuy(telegram_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user or not user.is_premium:
+        raise HTTPException(status_code=403, detail="Требуется Premium")
+    return await get_autobuy_settings(telegram_id)
+
+
+class AutobuySettings(BaseModel):
+    enabled: bool = False
+    keywords: str = ""
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+
+
+@app.post("/api/user/autobuy/{telegram_id}")
+async def set_autobuy(telegram_id: int, body: AutobuySettings):
+    return await save_autobuy_settings(
+        telegram_id, body.enabled, body.keywords, body.min_price, body.max_price
+    )
 
 
 # ── Admin ──────────────────────────────────────────────
@@ -451,3 +508,58 @@ async def admin_get_logs(telegram_id: int):
 async def admin_get_user_logs(target_id: int, telegram_id: int):
     await require_admin(telegram_id)
     return await get_user_logs(target_id)
+
+
+# ── Admin Achievements ────────────────────────────────────────
+
+@app.get("/api/admin/achievements/{telegram_id}")
+async def admin_list_achievements(telegram_id: int):
+    await require_admin(telegram_id)
+    return await admin_get_achievements()
+
+
+class AchievementCreate(BaseModel):
+    admin_telegram_id: int
+    name: str
+    description: str = ""
+    icon: str = "🏆"
+    condition_type: str
+    condition_value: str = "0"
+
+
+@app.post("/api/admin/achievements")
+async def admin_create_achievement(data: AchievementCreate):
+    await require_admin(data.admin_telegram_id)
+    return await admin_add_achievement(
+        name=data.name, description=data.description, icon=data.icon,
+        condition_type=data.condition_type, condition_value=data.condition_value
+    )
+
+
+class AchievementEdit(BaseModel):
+    admin_telegram_id: int
+    achievement_id: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    condition_type: Optional[str] = None
+    condition_value: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@app.post("/api/admin/achievements/edit")
+async def admin_edit_ach(data: AchievementEdit):
+    await require_admin(data.admin_telegram_id)
+    kwargs = {k: v for k, v in data.dict().items() if k not in ("admin_telegram_id", "achievement_id") and v is not None}
+    return await admin_edit_achievement(data.achievement_id, **kwargs)
+
+
+class AchievementDelete(BaseModel):
+    admin_telegram_id: int
+    achievement_id: int
+
+
+@app.post("/api/admin/achievements/delete")
+async def admin_delete_ach(data: AchievementDelete):
+    await require_admin(data.admin_telegram_id)
+    return await admin_delete_achievement(data.achievement_id)

@@ -248,6 +248,12 @@ select.form-input { cursor:pointer; }
 
 .log-filter-btn { border:1px solid var(--border); background:var(--bg3); color:var(--text2); border-radius:8px; padding:4px 9px; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .log-filter-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.vpn-tpl-row { display:flex; gap:7px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; margin-bottom:4px; }
+.vpn-tpl-row::-webkit-scrollbar { display:none; }
+.vpn-tpl-chip { flex-shrink:0; border:1px solid var(--border); border-radius:9px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg3); color:var(--text); display:flex; align-items:center; gap:5px; transition:all .15s; white-space:nowrap; }
+.vpn-tpl-chip:hover { border-color:var(--accent); background:rgba(var(--accent-rgb,100,80,255),.12); }
+.vpn-tpl-chip .tpl-del { opacity:.5; font-size:12px; margin-left:2px; }
+.vpn-tpl-chip .tpl-del:hover { opacity:1; color:var(--red); }
 .log-entry { display:flex; gap:8px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--border); }
 .log-entry:last-child { border-bottom:none; }
 .log-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
@@ -333,6 +339,32 @@ select.form-input { cursor:pointer; }
 .click-btn::after { content:''; display:none; position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:22px; animation:crownFloat 2s ease-in-out infinite; }
 .click-btn.item-crown::after { content:'👑'; display:block; }
 
+/* ══ ACHIEVEMENTS ══ */
+.ach-card { display:flex; gap:10px; align-items:center; padding:10px 12px; background:var(--bg3); border-radius:12px; border:1px solid var(--border); margin-bottom:8px; transition:all .2s; }
+.ach-card.unlocked { border-color:var(--accent); background:rgba(124,108,247,.08); }
+.ach-icon { font-size:26px; flex-shrink:0; width:42px; height:42px; display:flex; align-items:center; justify-content:center; background:var(--bg2); border-radius:10px; }
+.ach-card.locked .ach-icon { filter:grayscale(1) brightness(.6); }
+.ach-body { flex:1; min-width:0; }
+.ach-name { font-size:13px; font-weight:700; }
+.ach-card.locked .ach-name { opacity:.45; }
+.ach-desc { font-size:11px; color:var(--text2); margin-top:2px; line-height:1.3; }
+.ach-date { font-size:10px; color:var(--accent); margin-top:3px; font-family:monospace; }
+.ach-locked-lbl { font-size:10px; color:var(--text2); margin-top:3px; opacity:.55; }
+.ach-badge { font-size:10px; padding:2px 7px; border-radius:6px; background:var(--accent); color:#fff; display:inline-block; margin-top:3px; }
+/* toggle switch */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; }
+.toggle-sw { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle-sw input { opacity:0; width:0; height:0; }
+.toggle-knob { position:absolute; inset:0; background:var(--border); border-radius:34px; cursor:pointer; transition:.3s; }
+.toggle-knob:before { content:''; position:absolute; width:18px; height:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+.toggle-sw input:checked + .toggle-knob { background:var(--accent); }
+.toggle-sw input:checked + .toggle-knob:before { transform:translateX(20px); }
+/* history log */
+.hlog-item { display:flex; gap:8px; padding:8px 10px; background:var(--bg3); border-radius:10px; border:1px solid var(--border); margin-bottom:6px; }
+.hlog-icon { font-size:18px; flex-shrink:0; }
+.hlog-body { flex:1; min-width:0; }
+.hlog-desc { font-size:12px; word-break:break-word; }
+.hlog-date { font-size:10px; color:var(--text2); margin-top:2px; font-family:monospace; }
 </style>
 </head>
 <body>
@@ -427,6 +459,14 @@ select.form-input { cursor:pointer; }
   </div>
   <div class="section-title">История VPN</div>
   <div id="vpn-history"><div class="loader"><div class="spinner"></div></div></div>
+
+  <div class="section-title" style="margin-top:20px">🏆 Достижения</div>
+  <div id="achievements-list"><div class="loader"><div class="spinner"></div></div></div>
+
+  <div id="extended-history-section" style="display:none;margin-top:20px">
+    <div class="section-title">📜 История активности <span class="tag tag-yellow" style="font-size:10px;padding:2px 7px">👑 Premium</span></div>
+    <div id="extended-history-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -507,6 +547,23 @@ select.form-input { cursor:pointer; }
       </div>
     </div>
   </div>
+
+  <div class="settings-section" id="autobuy-section" style="display:none">
+    <div class="settings-title">🤖 Авто-покупка VPN <span class="tag tag-yellow" style="font-size:10px;padding:2px 7px;margin-left:4px">👑 Premium</span></div>
+    <div class="toggle-row">
+      <span style="font-size:13px">Включить авто-покупку</span>
+      <label class="toggle-sw"><input type="checkbox" id="autobuy-enabled"><span class="toggle-knob"></span></label>
+    </div>
+    <div class="form-group" style="margin-top:8px">
+      <label class="form-label">Ключевые слова (через запятую)</label>
+      <input class="form-input" id="autobuy-keywords" placeholder="Европа, Pro, VPN">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label class="form-label">Мин. цена</label><input class="form-input" type="number" id="autobuy-min" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Макс. цена</label><input class="form-input" type="number" id="autobuy-max" placeholder="любая"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="saveAutobuySettings()">💾 Сохранить настройки</button>
+  </div>
 </div>
 
 <!-- ADMIN -->
@@ -519,6 +576,7 @@ select.form-input { cursor:pointer; }
     <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
     <button class="admin-tab" onclick="switchAdminTab('promos')">Акции</button>
     <button class="admin-tab" onclick="switchAdminTab('logs')">📋 Логи</button>
+    <button class="admin-tab" onclick="switchAdminTab('achievements')">🏆 Ачивки</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -574,6 +632,11 @@ select.form-input { cursor:pointer; }
     </div>
     <div id="admin-logs-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
+
+  <div id="admin-tab-achievements" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddAchModal()">➕ Добавить ачивку</button>
+    <div id="admin-ach-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
 </div>
 
 <!-- NAV -->
@@ -585,6 +648,38 @@ select.form-input { cursor:pointer; }
   <button class="nav-btn" onclick="navigate('settings')"id="nav-settings"><span class="icon">⚙️</span><span>Настройки</span></button>
   <button class="nav-btn" onclick="navigate('admin')"   id="nav-admin" style="display:none"><span class="icon">🛠</span><span>Админ</span></button>
 </nav>
+
+<!-- MODAL: Achievement add/edit -->
+<div class="modal-overlay" id="modal-ach">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-ach-title">Добавить ачивку</div>
+    <input type="hidden" id="ach-edit-id">
+    <div class="form-group"><label class="form-label">Иконка</label><input class="form-input" id="ach-icon" placeholder="🏆" maxlength="4" value="🏆"></div>
+    <div class="form-group"><label class="form-label">Название</label><input class="form-input" id="ach-name" placeholder="Название ачивки"></div>
+    <div class="form-group"><label class="form-label">Описание</label><input class="form-input" id="ach-desc" placeholder="Как получить?"></div>
+    <div class="form-group">
+      <label class="form-label">Условие</label>
+      <select class="form-input" id="ach-ctype">
+        <option value="total_clicks_gte">Кликов всего ≥ N</option>
+        <option value="vpn_buy_count_gte">Покупок VPN ≥ N</option>
+        <option value="is_premium">Имеет Premium</option>
+        <option value="all_non_premium_upgrades">Все обычные улучшения</option>
+        <option value="balance_max_gte">Рекорд баланса ≥ N</option>
+        <option value="own_skin">Владеет скином (ID в значении)</option>
+        <option value="all_effects_owned">Эффектов куплено ≥ N</option>
+        <option value="promo_exists">Акция активна</option>
+        <option value="all_themes_tried">Тем опробовано ≥ N</option>
+        <option value="manual">Выдаётся вручную</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Значение условия (число или ID скина)</label><input class="form-input" id="ach-cval" placeholder="0"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-ach')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitAchForm()">Сохранить</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: VPN buy -->
 <div class="modal-overlay" id="modal-vpn">
@@ -605,6 +700,13 @@ select.form-input { cursor:pointer; }
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-add-vpn-title">➕ VPN конфиг</div>
     <input type="hidden" id="edit-vpn-id" value="">
+    <div id="vpn-tpl-section" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">📋 Шаблоны</span>
+        <button class="btn btn-outline btn-sm" style="font-size:10px;padding:3px 8px" onclick="saveVpnTemplate()">💾 Сохранить как шаблон</button>
+      </div>
+      <div class="vpn-tpl-row" id="vpn-tpl-row"><span style="font-size:11px;color:var(--text2);opacity:.6">Нет шаблонов</span></div>
+    </div>
     <div class="form-group"><label class="form-label">Название *</label><input class="form-input" id="vpn-add-name" placeholder="Европа Pro"></div>
     <div class="form-group"><label class="form-label">Описание</label><textarea class="form-input" id="vpn-add-desc" placeholder="Описание..."></textarea></div>
     <div class="form-group"><label class="form-label">Конфиг / ключ *</label><textarea class="form-input" id="vpn-add-config" placeholder="Вставьте конфиг..."></textarea></div>
@@ -786,6 +888,7 @@ function navigate(page) {
   if (page === 'shop')    { loadUpgrades(); renderPremiumSection(); }
   if (page === 'vpn')     loadVPN();
   if (page === 'profile') loadProfile();
+  if (page === 'settings') { if (S.isPremium) { document.getElementById('autobuy-section').style.display='block'; loadAutobuySettings(); } }
   if (page === 'admin')   { switchAdminTab('vpn'); }
 }
 
@@ -822,14 +925,16 @@ async function flushClicks() {
 }
 
 // ══ AUTO CLICK ══
+const MAX_AUTO_CPS = 7;
 let autoTimer = null;
 function startAutoClick() {
   if (autoTimer) clearInterval(autoTimer);
   if (S.acps <= 0) return;
   autoTimer = setInterval(() => {
     if (!S.user) return;
-    S.balance += S.acps / 10;
-    pendingAuto += S.acps / 10;
+    const eff = Math.min(S.acps, MAX_AUTO_CPS);
+    S.balance += eff / 10;
+    pendingAuto += eff / 10;
     updateBalanceUI();
     if (pendingAuto >= 1) {
       const toFlush = pendingAuto; pendingAuto = 0;
@@ -977,8 +1082,8 @@ async function loadProfile() {
   const c = document.getElementById('vpn-history');
   try {
     const purchases = await fetch(`/api/vpn/purchases/${S.user.telegram_id}`).then(r=>r.json());
-    if (!purchases.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>Покупок VPN нет</div>'; return; }
-    c.innerHTML = purchases.map(p => {
+    if (!purchases.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>Покупок VPN нет</div>'; }
+    else c.innerHTML = purchases.map(p => {
       const bought  = new Date(p.purchased_at).toLocaleDateString('ru');
       const expires = p.expires_at ? new Date(p.expires_at).toLocaleDateString('ru') : '—';
       const expired = p.expires_at && new Date(p.expires_at) < new Date();
@@ -992,6 +1097,69 @@ async function loadProfile() {
         ${p.config_data ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--accent2)">Показать конфиг</summary>
         <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${p.config_data}</div></details>` : ''}
       </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+  loadAchievements();
+  if (S.isPremium) {
+    document.getElementById('extended-history-section').style.display = 'block';
+    loadExtendedHistory();
+  }
+}
+
+async function loadAchievements() {
+  if (!S.user) return;
+  const c = document.getElementById('achievements-list');
+  try {
+    const list = await fetch(`/api/achievements/${S.user.telegram_id}`).then(r=>r.json());
+    const unlocked = list.filter(a=>a.unlocked).length;
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🏆</div>Ачивок нет</div>'; return; }
+    c.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;color:var(--text2)">Получено: <b style="color:var(--accent)">${unlocked}</b> / ${list.length}</span>
+      <button class="btn btn-outline btn-sm" onclick="triggerAchievementCheck()">🔍 Проверить</button>
+    </div>` + list.map(a => {
+      const dateStr = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('ru') : '';
+      return `<div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
+        <div class="ach-icon">${a.icon}</div>
+        <div class="ach-body">
+          <div class="ach-name">${a.name}</div>
+          <div class="ach-desc">${a.description || ''}</div>
+          ${a.unlocked ? `<div class="ach-date">✅ ${dateStr}</div>` : '<div class="ach-locked-lbl">🔒 Не получено</div>'}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+async function triggerAchievementCheck() {
+  if (!S.user) return;
+  const ownedSkins = S.ownedSkins || [];
+  const ownedItemsCount = JSON.parse(localStorage.getItem('ownedItems') || '[]').length;
+  const triedThemes = JSON.parse(localStorage.getItem('triedThemes') || '[]');
+  try {
+    const newOnes = await fetch(`/api/achievements/check/${S.user.telegram_id}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({owned_skins: ownedSkins, owned_items_count: ownedItemsCount, themes_tried_count: triedThemes.length})
+    }).then(r=>r.json());
+    if (newOnes.length) {
+      showToast(`🏆 Новые ачивки: ${newOnes.map(a=>a.name).join(', ')}`, 'success');
+      loadAchievements();
+    } else {
+      showToast('Новых ачивок пока нет', '');
+    }
+  } catch(e) { showToast('Ошибка проверки', 'error'); }
+}
+
+async function loadExtendedHistory() {
+  if (!S.user || !S.isPremium) return;
+  const c = document.getElementById('extended-history-list');
+  try {
+    const list = await fetch(`/api/user/history/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">📜</div>История пуста</div>'; return; }
+    const icons = {vpn_buy:'🔐', upgrade_buy:'⚡', balance_add:'➕', balance_remove:'➖', premium_buy:'👑', register:'🎉'};
+    c.innerHTML = list.map(l => {
+      const icon = icons[l.action_type] || '📋';
+      const dt = new Date(l.created_at).toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div class="hlog-item"><div class="hlog-icon">${icon}</div><div class="hlog-body"><div class="hlog-desc">${l.description}</div><div class="hlog-date">${dt}</div></div></div>`;
     }).join('');
   } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
 }
@@ -1016,7 +1184,13 @@ function initSettings() {
 
 function setTheme(name, save=true) {
   S.theme = name;
-  if (save) { localStorage.setItem('theme', name); applyTheme(name); }
+  if (save) {
+    localStorage.setItem('theme', name);
+    applyTheme(name);
+    const tried = new Set(JSON.parse(localStorage.getItem('triedThemes') || '[]'));
+    tried.add(name);
+    localStorage.setItem('triedThemes', JSON.stringify([...tried]));
+  }
   document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
   const tb = document.getElementById(`tbtn-${name}`);
   if (tb) tb.classList.add('active');
@@ -1162,10 +1336,10 @@ function renderPremiumSection() {
   const c = document.getElementById('shop-premium-section');
   if (!c) return;
   const periods = [
-    {key:'month',   label:'1 мес.',  days:'30 дней',  price:20000},
-    {key:'3months', label:'3 мес.',  days:'90 дней',  price:50000},
-    {key:'6months', label:'6 мес.',  days:'180 дней', price:85000},
-    {key:'year',    label:'1 год',   days:'365 дней', price:150000},
+    {key:'month',   label:'1 мес.',  days:'30 дней',  price:150000},
+    {key:'3months', label:'3 мес.',  days:'90 дней',  price:350000},
+    {key:'6months', label:'6 мес.',  days:'180 дней', price:550000},
+    {key:'year',    label:'1 год',   days:'365 дней', price:1000000},
   ];
   if (S.isPremium) {
     c.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(212,175,55,.18),rgba(100,50,180,.1));border:1px solid #8a6000;border-radius:14px;padding:14px;margin-bottom:14px">
@@ -1195,7 +1369,7 @@ function renderPremiumSection() {
     </button>
   </div>`;
   window._premiumPeriod = 'month';
-  window._premiumPrice  = 20000;
+  window._premiumPrice  = 150000;
 }
 
 function selectPremiumPeriod(el, key, price) {
@@ -1208,7 +1382,7 @@ function selectPremiumPeriod(el, key, price) {
 async function buyPremium() {
   if (!S.user) return;
   const period = window._premiumPeriod || 'month';
-  const price  = window._premiumPrice  || 20000;
+  const price  = window._premiumPrice  || 150000;
   if (S.balance < price) { showToast(`❌ Нужно ${price.toLocaleString('ru')} кликов`, 'error'); return; }
   try {
     const data = await fetch(`/api/premium/buy/${S.user.telegram_id}`, {
@@ -2174,17 +2348,18 @@ async function loadPromos() {
 let curAdminTab = 'vpn';
 function switchAdminTab(tab) {
   curAdminTab = tab;
-  ['vpn','upgrades','users','balance','promos','logs'].forEach(t => {
+  ['vpn','upgrades','users','balance','promos','logs','achievements'].forEach(t => {
     document.getElementById(`admin-tab-${t}`).style.display = t===tab?'block':'none';
   });
   document.querySelectorAll('.admin-tab').forEach((b,i) => {
-    b.classList.toggle('active', ['vpn','upgrades','users','balance','promos','logs'][i]===tab);
+    b.classList.toggle('active', ['vpn','upgrades','users','balance','promos','logs','achievements'][i]===tab);
   });
-  if (tab==='vpn')      loadAdminVPN();
-  if (tab==='upgrades') loadAdminUpgrades();
-  if (tab==='users')    loadAdminUsers();
-  if (tab==='promos')   loadAdminPromos();
-  if (tab==='logs')     loadAdminLogs();
+  if (tab==='vpn')          loadAdminVPN();
+  if (tab==='upgrades')     loadAdminUpgrades();
+  if (tab==='users')        loadAdminUsers();
+  if (tab==='promos')       loadAdminPromos();
+  if (tab==='logs')         loadAdminLogs();
+  if (tab==='achievements') loadAdminAchievements();
 }
 
 async function loadAdminVPN() {
@@ -2333,10 +2508,60 @@ async function adminDeleteUser(tgId, name) {
 }
 
 // VPN FORMS
+// ══ VPN TEMPLATES ══
+function getVpnTemplates() { return JSON.parse(localStorage.getItem('vpnTemplates')||'[]'); }
+function saveVpnTemplates(t) { localStorage.setItem('vpnTemplates', JSON.stringify(t)); }
+
+function renderVpnTemplates() {
+  const row = document.getElementById('vpn-tpl-row');
+  if (!row) return;
+  const tpls = getVpnTemplates();
+  if (!tpls.length) { row.innerHTML='<span style="font-size:11px;color:var(--text2);opacity:.6">Нет шаблонов</span>'; return; }
+  row.innerHTML = tpls.map(t => `
+    <div class="vpn-tpl-chip" onclick="applyVpnTemplate(${t.id})">
+      🔧 ${t.name}
+      <span class="tpl-del" onclick="event.stopPropagation();deleteVpnTemplate(${t.id})">✕</span>
+    </div>`).join('');
+}
+
+function applyVpnTemplate(id) {
+  const tpl = getVpnTemplates().find(t=>t.id===id);
+  if (!tpl) return;
+  document.getElementById('vpn-add-name').value  = tpl.name;
+  document.getElementById('vpn-add-desc').value  = tpl.description||'';
+  document.getElementById('vpn-add-price').value = tpl.price||'';
+  document.getElementById('vpn-add-qty').value   = tpl.qty||'';
+  showToast('📋 Шаблон применён','success');
+}
+
+function saveVpnTemplate() {
+  const name  = document.getElementById('vpn-add-name').value.trim();
+  if (!name) { showToast('❌ Введи название','error'); return; }
+  const tpls = getVpnTemplates();
+  if (tpls.find(t=>t.name===name)) { showToast('⚠️ Шаблон с таким именем уже есть','error'); return; }
+  tpls.push({
+    id: Date.now(),
+    name,
+    description: document.getElementById('vpn-add-desc').value.trim(),
+    price: document.getElementById('vpn-add-price').value,
+    qty:   document.getElementById('vpn-add-qty').value,
+  });
+  saveVpnTemplates(tpls);
+  renderVpnTemplates();
+  showToast('✅ Шаблон сохранён','success');
+}
+
+function deleteVpnTemplate(id) {
+  saveVpnTemplates(getVpnTemplates().filter(t=>t.id!==id));
+  renderVpnTemplates();
+  showToast('🗑 Шаблон удалён','success');
+}
+
 function openAddVpnModal() {
   document.getElementById('modal-add-vpn-title').textContent = '➕ Добавить VPN';
   document.getElementById('edit-vpn-id').value = '';
   ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-until'].forEach(id=>document.getElementById(id).value='');
+  renderVpnTemplates();
   openModal('modal-add-vpn');
 }
 
@@ -2353,6 +2578,7 @@ async function openEditVpnModal(id) {
   document.getElementById('vpn-add-duration').value = cf.duration_days;
   document.getElementById('vpn-add-qty').value = cf.quantity;
   document.getElementById('vpn-add-until').value = cf.available_until ? cf.available_until.slice(0,10) : '';
+  renderVpnTemplates();
   openModal('modal-add-vpn');
 }
 
@@ -2560,6 +2786,122 @@ async function adminDeletePromo(id) {
   const data = await fetch('/api/admin/promotions/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_telegram_id:S.user.telegram_id,promo_id:id})}).then(r=>r.json());
   if (data.ok) { showToast('✅ Удалено','success'); loadAdminPromos(); }
   else showToast(`❌ ${data.error}`,'error');
+}
+
+// ══ AUTOBUY SETTINGS ══
+async function loadAutobuySettings() {
+  if (!S.user || !S.isPremium) return;
+  try {
+    const d = await fetch(`/api/user/autobuy/${S.user.telegram_id}`).then(r=>r.json());
+    document.getElementById('autobuy-enabled').checked = !!d.enabled;
+    document.getElementById('autobuy-keywords').value = d.keywords || '';
+    document.getElementById('autobuy-min').value = d.min_price != null ? d.min_price : '';
+    document.getElementById('autobuy-max').value = d.max_price != null ? d.max_price : '';
+  } catch(e) {}
+}
+
+async function saveAutobuySettings() {
+  if (!S.user) return;
+  const enabled = document.getElementById('autobuy-enabled').checked;
+  const keywords = document.getElementById('autobuy-keywords').value.trim();
+  const minV = document.getElementById('autobuy-min').value;
+  const maxV = document.getElementById('autobuy-max').value;
+  try {
+    const r = await fetch(`/api/user/autobuy/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enabled, keywords, min_price: minV ? parseFloat(minV) : null, max_price: maxV ? parseFloat(maxV) : null})
+    }).then(r=>r.json());
+    if (r.ok) showToast('✅ Настройки сохранены', 'success');
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ══ ADMIN ACHIEVEMENTS ══
+async function loadAdminAchievements() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-ach-list');
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const list = await fetch(`/api/admin/achievements/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🏆</div>Ачивок нет</div>'; return; }
+    const ctypeLabels = {
+      total_clicks_gte:'кликов ≥', vpn_buy_count_gte:'VPN ≥', is_premium:'Premium',
+      all_non_premium_upgrades:'все улучш.', balance_max_gte:'баланс рекорд ≥',
+      own_skin:'скин', all_effects_owned:'эффектов ≥', promo_exists:'акция активна',
+      all_themes_tried:'тем ≥', manual:'вручную'
+    };
+    c.innerHTML = list.map(a => {
+      const st = a.is_active ? '<span class="tag tag-green">Активна</span>' : '<span class="tag tag-red">Выкл</span>';
+      const cond = `${ctypeLabels[a.condition_type]||a.condition_type} ${a.condition_value}`;
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:22px">${a.icon}</span>
+          <div style="flex:1"><div style="font-weight:700">${a.name}</div><div style="font-size:11px;color:var(--text2)">${a.description||''}</div></div>
+          ${st}
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Условие: <code>${cond}</code></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="editAchModal(${JSON.stringify(a).replace(/"/g,'&quot;')})">✏️ Изменить</button>
+          <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteAchievement(${a.id})">🗑 Удалить</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function openAddAchModal() {
+  document.getElementById('modal-ach-title').textContent = 'Добавить ачивку';
+  document.getElementById('ach-edit-id').value = '';
+  document.getElementById('ach-icon').value = '🏆';
+  document.getElementById('ach-name').value = '';
+  document.getElementById('ach-desc').value = '';
+  document.getElementById('ach-ctype').value = 'total_clicks_gte';
+  document.getElementById('ach-cval').value = '0';
+  openModal('modal-ach');
+}
+
+function editAchModal(a) {
+  document.getElementById('modal-ach-title').textContent = 'Редактировать ачивку';
+  document.getElementById('ach-edit-id').value = a.id;
+  document.getElementById('ach-icon').value = a.icon;
+  document.getElementById('ach-name').value = a.name;
+  document.getElementById('ach-desc').value = a.description || '';
+  document.getElementById('ach-ctype').value = a.condition_type;
+  document.getElementById('ach-cval').value = a.condition_value;
+  openModal('modal-ach');
+}
+
+async function submitAchForm() {
+  if (!S.user) return;
+  const editId = document.getElementById('ach-edit-id').value;
+  const body = {
+    admin_telegram_id: S.user.telegram_id,
+    icon: document.getElementById('ach-icon').value.trim() || '🏆',
+    name: document.getElementById('ach-name').value.trim(),
+    description: document.getElementById('ach-desc').value.trim(),
+    condition_type: document.getElementById('ach-ctype').value,
+    condition_value: document.getElementById('ach-cval').value.trim() || '0'
+  };
+  if (!body.name) { showToast('❌ Введите название', 'error'); return; }
+  try {
+    let url = '/api/admin/achievements';
+    if (editId) { url = '/api/admin/achievements/edit'; body.achievement_id = parseInt(editId); }
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+    if (r.ok) { showToast('✅ Сохранено', 'success'); closeModal('modal-ach'); loadAdminAchievements(); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+async function deleteAchievement(id) {
+  if (!S.user || !confirm('Удалить ачивку?')) return;
+  try {
+    const r = await fetch('/api/admin/achievements/delete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({admin_telegram_id: S.user.telegram_id, achievement_id: id})
+    }).then(r=>r.json());
+    if (r.ok) { showToast('✅ Удалено', 'success'); loadAdminAchievements(); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
 }
 
 // ══ MODAL UTILS ══

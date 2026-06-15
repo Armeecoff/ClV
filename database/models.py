@@ -1,19 +1,13 @@
 from datetime import datetime
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Float,
-    ForeignKey, Integer, String, Text, Enum
+    ForeignKey, Integer, String, Text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
-import enum
 
 
 class Base(DeclarativeBase):
     pass
-
-
-class UpgradeType(str, enum.Enum):
-    click = "click"
-    autoclk = "autoclk"
 
 
 class User(Base):
@@ -27,14 +21,20 @@ class User(Base):
     total_clicks = Column(BigInteger, default=0, nullable=False)
     clicks_per_click = Column(Integer, default=1, nullable=False)
     auto_clicks_per_second = Column(Float, default=0.0, nullable=False)
+    max_balance = Column(Float, default=0.0, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     is_premium = Column(Boolean, default=False, nullable=False)
     premium_until = Column(DateTime, nullable=True)
+    autobuy_enabled = Column(Boolean, default=False, nullable=False)
+    autobuy_keywords = Column(Text, nullable=True)
+    autobuy_min_price = Column(Float, nullable=True)
+    autobuy_max_price = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
     vpn_purchases = relationship("VPNPurchase", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
+    achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
 
 
 class ClickUpgrade(Base):
@@ -125,3 +125,30 @@ class Promotion(Base):
     end_at = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(20), default="🏆", nullable=False)
+    condition_type = Column(String(50), nullable=False)
+    condition_value = Column(Text, default="0", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user_achievements = relationship("UserAchievement", back_populates="achievement", cascade="all, delete-orphan")
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    achievement_id = Column(Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False)
+    unlocked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="achievements")
+    achievement = relationship("Achievement", back_populates="user_achievements")
