@@ -29,12 +29,22 @@ class User(Base):
     autobuy_keywords = Column(Text, nullable=True)
     autobuy_min_price = Column(Float, nullable=True)
     autobuy_max_price = Column(Float, nullable=True)
+    login_days_count = Column(Integer, default=0, nullable=False)
+    login_streak = Column(Integer, default=0, nullable=False)
+    last_login_date = Column(DateTime, nullable=True)
+    profile_bio = Column(String(200), nullable=True)
+    profile_badge = Column(String(20), nullable=True)
+    vpn_notify_enabled = Column(Boolean, default=False, nullable=False)
+    offline_income_enabled = Column(Boolean, default=False, nullable=False)
+    last_offline_check = Column(DateTime, nullable=True)
+    equipped_avatar = Column(String(20), default="👤", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
     vpn_purchases = relationship("VPNPurchase", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
+    owned_avatars = relationship("UserAvatar", back_populates="user", cascade="all, delete-orphan")
 
 
 class ClickUpgrade(Base):
@@ -80,6 +90,8 @@ class VPNConfig(Base):
     quantity_left = Column(Integer, nullable=False, default=1)
     available_until = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_premium_only = Column(Boolean, default=False, nullable=False)
+    notify_sent = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_by = Column(BigInteger, nullable=True)
 
@@ -152,3 +164,65 @@ class UserAchievement(Base):
 
     user = relationship("User", back_populates="achievements")
     achievement = relationship("Achievement", back_populates="user_achievements")
+
+
+class AppSettings(Base):
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(100), unique=True, nullable=False, index=True)
+    value = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Avatar(Base):
+    __tablename__ = "avatars"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    emoji = Column(String(20), nullable=False)
+    price = Column(Float, nullable=False, default=0.0)
+    description = Column(String(200), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    owners = relationship("UserAvatar", back_populates="avatar")
+
+
+class UserAvatar(Base):
+    __tablename__ = "user_avatars"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    avatar_id = Column(Integer, ForeignKey("avatars.id", ondelete="CASCADE"), nullable=False)
+    purchased_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="owned_avatars")
+    avatar = relationship("Avatar", back_populates="owners")
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    amount = Column(Float, nullable=False)
+    max_activations = Column(Integer, nullable=False)
+    activations_used = Column(Integer, default=0, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(BigInteger, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    activations = relationship("PromoCodeActivation", back_populates="promo_code", cascade="all, delete-orphan")
+
+
+class PromoCodeActivation(Base):
+    __tablename__ = "promo_code_activations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    promo_code_id = Column(Integer, ForeignKey("promo_codes.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    activated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    promo_code = relationship("PromoCode", back_populates="activations")

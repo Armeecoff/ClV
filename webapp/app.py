@@ -9,7 +9,7 @@ import os
 from database.db import (
     get_or_create_user, sync_clicks, sync_autoclicks,
     get_upgrades, get_user_upgrade_ids, buy_upgrade,
-    get_vpn_configs, buy_vpn, get_user_vpn_purchases,
+    get_vpn_configs, buy_vpn, get_user_vpn_purchases, delete_vpn_purchase,
     adjust_balance, get_all_vpn_configs, add_vpn_config,
     edit_vpn_config, delete_vpn_config, toggle_vpn_active,
     get_all_users, set_admin, set_premium, get_user_by_telegram_id,
@@ -22,7 +22,14 @@ from database.db import (
     admin_get_achievements, admin_add_achievement,
     admin_edit_achievement, admin_delete_achievement,
     get_autobuy_settings, save_autobuy_settings,
-    get_user_extended_history
+    get_user_extended_history,
+    get_premium_prices, set_premium_price,
+    get_user_upgrades_admin, remove_user_upgrade,
+    get_avatars_with_ownership, buy_avatar, equip_avatar,
+    spin_roulette,
+    admin_create_promo_code, admin_edit_promo_code,
+    admin_delete_promo_code, admin_get_promo_codes, activate_promo_code,
+    save_user_settings, update_user_profile, claim_offline_income
 )
 from config import ADMIN_IDS
 
@@ -51,7 +58,12 @@ async def get_user(telegram_id: int, username: str = None, first_name: str = Non
         "auto_clicks_per_second": user.auto_clicks_per_second,
         "is_admin": check_admin(user.telegram_id, user.is_admin),
         "is_premium": user.is_premium,
-        "premium_until": user.premium_until.isoformat() if user.premium_until else None
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+        "profile_bio": user.profile_bio,
+        "profile_badge": user.profile_badge,
+        "vpn_notify_enabled": user.vpn_notify_enabled,
+        "offline_income_enabled": user.offline_income_enabled,
+        "equipped_avatar": user.equipped_avatar or "👤"
     }
 
 
@@ -117,6 +129,7 @@ async def list_vpn():
             "id": c.id, "name": c.name, "description": c.description,
             "price_clicks": c.price_clicks, "duration_days": c.duration_days,
             "quantity_left": c.quantity_left,
+            "is_premium_only": c.is_premium_only,
             "available_until": c.available_until.isoformat() if c.available_until else None
         }
         for c in configs
@@ -131,6 +144,11 @@ async def purchase_vpn(telegram_id: int, vpn_id: int):
 @app.get("/api/vpn/purchases/{telegram_id}")
 async def user_vpn_purchases(telegram_id: int):
     return await get_user_vpn_purchases(telegram_id)
+
+
+@app.delete("/api/vpn/purchase/{telegram_id}/{purchase_id}")
+async def remove_vpn_purchase(telegram_id: int, purchase_id: int):
+    return await delete_vpn_purchase(telegram_id, purchase_id)
 
 
 # ── Achievements ──────────────────────────────────────────────
@@ -183,6 +201,76 @@ async def set_autobuy(telegram_id: int, body: AutobuySettings):
     return await save_autobuy_settings(
         telegram_id, body.enabled, body.keywords, body.min_price, body.max_price
     )
+
+
+# ── User Settings & Profile ───────────────────────────────────
+
+class UserSettingsBody(BaseModel):
+    vpn_notify: Optional[bool] = None
+    offline_income: Optional[bool] = None
+
+
+@app.post("/api/user/settings/{telegram_id}")
+async def update_settings(telegram_id: int, body: UserSettingsBody):
+    return await save_user_settings(telegram_id, body.vpn_notify, body.offline_income)
+
+
+class ProfileUpdateBody(BaseModel):
+    bio: Optional[str] = None
+    badge: Optional[str] = None
+
+
+@app.post("/api/user/profile/{telegram_id}")
+async def update_profile(telegram_id: int, body: ProfileUpdateBody):
+    return await update_user_profile(telegram_id, body.bio, body.badge)
+
+
+@app.post("/api/user/offline-income/{telegram_id}")
+async def get_offline_income(telegram_id: int):
+    return await claim_offline_income(telegram_id)
+
+
+# ── Roulette ──────────────────────────────────────────────────
+
+class RouletteSpin(BaseModel):
+    bet: int
+
+
+@app.post("/api/roulette/spin/{telegram_id}")
+async def roulette_spin(telegram_id: int, body: RouletteSpin):
+    return await spin_roulette(telegram_id, body.bet)
+
+
+# ── Avatars ───────────────────────────────────────────────────
+
+@app.get("/api/avatars/{telegram_id}")
+async def get_avatars(telegram_id: int):
+    return await get_avatars_with_ownership(telegram_id)
+
+
+class AvatarAction(BaseModel):
+    avatar_id: int
+
+
+@app.post("/api/avatars/buy/{telegram_id}")
+async def purchase_avatar(telegram_id: int, body: AvatarAction):
+    return await buy_avatar(telegram_id, body.avatar_id)
+
+
+@app.post("/api/avatars/equip/{telegram_id}")
+async def set_avatar(telegram_id: int, body: AvatarAction):
+    return await equip_avatar(telegram_id, body.avatar_id)
+
+
+# ── Promo Codes (user) ────────────────────────────────────────
+
+class PromoCodeActivate(BaseModel):
+    code: str
+
+
+@app.post("/api/promo-code/activate/{telegram_id}")
+async def user_activate_promo(telegram_id: int, body: PromoCodeActivate):
+    return await activate_promo_code(telegram_id, body.code)
 
 
 # ── Admin ──────────────────────────────────────────────
@@ -240,6 +328,7 @@ async def admin_get_vpn(telegram_id: int):
             "config_data": c.config_data, "price_clicks": c.price_clicks,
             "duration_days": c.duration_days, "quantity": c.quantity,
             "quantity_left": c.quantity_left,
+            "is_premium_only": c.is_premium_only,
             "available_until": c.available_until.isoformat() if c.available_until else None,
             "is_active": c.is_active, "created_at": c.created_at.isoformat()
         }
@@ -256,6 +345,7 @@ class VPNCreate(BaseModel):
     duration_days: int
     quantity: int
     available_until: Optional[str] = None
+    is_premium_only: bool = False
 
 
 @app.post("/api/admin/vpn")
@@ -270,7 +360,8 @@ async def admin_add_vpn(data: VPNCreate):
     vpn = await add_vpn_config(
         name=data.name, description=data.description, config_data=data.config_data,
         price_clicks=data.price_clicks, duration_days=data.duration_days,
-        quantity=data.quantity, available_until=available_until, created_by=data.admin_telegram_id
+        quantity=data.quantity, available_until=available_until,
+        created_by=data.admin_telegram_id, is_premium_only=data.is_premium_only
     )
     return {"ok": True, "id": vpn.id}
 
@@ -286,6 +377,7 @@ class VPNEdit(BaseModel):
     quantity: Optional[int] = None
     available_until: Optional[str] = None
     is_active: Optional[bool] = None
+    is_premium_only: Optional[bool] = None
 
 
 @app.post("/api/admin/vpn/edit")
@@ -563,3 +655,108 @@ class AchievementDelete(BaseModel):
 async def admin_delete_ach(data: AchievementDelete):
     await require_admin(data.admin_telegram_id)
     return await admin_delete_achievement(data.achievement_id)
+
+
+# ── Premium Prices ────────────────────────────────────────────
+
+@app.get("/api/settings/premium-prices")
+async def get_prices():
+    return await get_premium_prices()
+
+
+class PremiumPriceSet(BaseModel):
+    admin_telegram_id: int
+    period: str
+    price: int
+
+
+@app.post("/api/admin/settings/premium-prices")
+async def admin_set_price(data: PremiumPriceSet):
+    await require_admin(data.admin_telegram_id)
+    return await set_premium_price(data.admin_telegram_id, data.period, data.price)
+
+
+# ── Admin: User Upgrades ──────────────────────────────────────
+
+@app.get("/api/admin/user-upgrades/{target_telegram_id}/{admin_telegram_id}")
+async def admin_list_user_upgrades(target_telegram_id: int, admin_telegram_id: int):
+    await require_admin(admin_telegram_id)
+    return await get_user_upgrades_admin(target_telegram_id)
+
+
+class RemoveUserUpgrade(BaseModel):
+    admin_telegram_id: int
+    target_telegram_id: int
+    user_upgrade_id: int
+
+
+@app.post("/api/admin/user-upgrades/remove")
+async def admin_remove_user_upgrade(data: RemoveUserUpgrade):
+    await require_admin(data.admin_telegram_id)
+    return await remove_user_upgrade(data.admin_telegram_id, data.target_telegram_id, data.user_upgrade_id)
+
+
+# ── Admin: Promo Codes ────────────────────────────────────────
+
+@app.get("/api/admin/promo-codes/{telegram_id}")
+async def admin_list_promo_codes(telegram_id: int):
+    await require_admin(telegram_id)
+    return await admin_get_promo_codes(telegram_id)
+
+
+class PromoCodeCreate(BaseModel):
+    admin_telegram_id: int
+    code: str
+    name: str
+    amount: float
+    max_activations: int
+    expires_at: Optional[str] = None
+
+
+@app.post("/api/admin/promo-codes/create")
+async def admin_create_promo(data: PromoCodeCreate):
+    await require_admin(data.admin_telegram_id)
+    expires = None
+    if data.expires_at:
+        try:
+            expires = datetime.fromisoformat(data.expires_at)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Неверный формат даты")
+    return await admin_create_promo_code(
+        data.admin_telegram_id, data.code, data.name,
+        data.amount, data.max_activations, expires
+    )
+
+
+class PromoCodeEdit(BaseModel):
+    admin_telegram_id: int
+    code_id: int
+    code: Optional[str] = None
+    name: Optional[str] = None
+    amount: Optional[float] = None
+    max_activations: Optional[int] = None
+    expires_at: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@app.post("/api/admin/promo-codes/edit")
+async def admin_edit_promo(data: PromoCodeEdit):
+    await require_admin(data.admin_telegram_id)
+    kwargs = {k: v for k, v in data.dict().items() if k not in ("admin_telegram_id", "code_id") and v is not None}
+    if "expires_at" in kwargs:
+        try:
+            kwargs["expires_at"] = datetime.fromisoformat(kwargs["expires_at"])
+        except Exception:
+            kwargs.pop("expires_at")
+    return await admin_edit_promo_code(data.admin_telegram_id, data.code_id, **kwargs)
+
+
+class PromoCodeDelete(BaseModel):
+    admin_telegram_id: int
+    code_id: int
+
+
+@app.post("/api/admin/promo-codes/delete")
+async def admin_del_promo(data: PromoCodeDelete):
+    await require_admin(data.admin_telegram_id)
+    return await admin_delete_promo_code(data.admin_telegram_id, data.code_id)

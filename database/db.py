@@ -1,10 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import select, delete, func
 from datetime import datetime, timedelta
+import random
 from config import DATABASE_URL, ADMIN_IDS
 from database.models import (
     Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase,
-    Promotion, UserActivityLog, Achievement, UserAchievement
+    Promotion, UserActivityLog, Achievement, UserAchievement, AppSettings,
+    Avatar, UserAvatar, PromoCode, PromoCodeActivation
 )
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
@@ -27,6 +29,17 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_keywords TEXT DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_min_price FLOAT DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_max_price FLOAT DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_days_count INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TIMESTAMP DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_bio VARCHAR(200) DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_badge VARCHAR(20) DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS vpn_notify_enabled BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS offline_income_enabled BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_offline_check TIMESTAMP DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_avatar VARCHAR(20) DEFAULT '👤' NOT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS is_premium_only BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS notify_sent BOOLEAN DEFAULT FALSE NOT NULL",
         ]
         for sql in migrations:
             try:
@@ -35,6 +48,8 @@ async def init_db():
                 pass
     await seed_upgrades()
     await seed_achievements()
+    await seed_new_achievements()
+    await seed_avatars()
     async with engine.begin() as conn:
         await conn.execute(
             __import__('sqlalchemy').text(
@@ -57,12 +72,17 @@ async def get_or_create_user(telegram_id: int, username: str = None, first_name:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
+        now = datetime.utcnow()
+        today = now.date()
         if not user:
             user = User(
                 telegram_id=telegram_id,
                 username=username,
                 first_name=first_name,
-                is_admin=(telegram_id in ADMIN_IDS)
+                is_admin=(telegram_id in ADMIN_IDS),
+                login_days_count=1,
+                login_streak=1,
+                last_login_date=now
             )
             session.add(user)
             await session.commit()
@@ -73,6 +93,14 @@ async def get_or_create_user(telegram_id: int, username: str = None, first_name:
                 user.username = username
             if first_name and user.first_name != first_name:
                 user.first_name = first_name
+            last = user.last_login_date.date() if user.last_login_date else None
+            if last != today:
+                user.login_days_count = (user.login_days_count or 0) + 1
+                if last and (today - last).days == 1:
+                    user.login_streak = (user.login_streak or 0) + 1
+                else:
+                    user.login_streak = 1
+                user.last_login_date = now
             await session.commit()
     return user
 
@@ -202,13 +230,51 @@ async def buy_upgrade(telegram_id: int, upgrade_id: int) -> dict:
     return result2
 
 
+async def get_premium_prices() -> dict:
+    defaults = {'month': 150000, '3months': 350000, '6months': 550000, 'year': 1000000}
+    async with async_session() as session:
+        for key, default in defaults.items():
+            skey = f"premium_price_{key}"
+            res = await session.execute(select(AppSettings).where(AppSettings.key == skey))
+            if not res.scalar_one_or_none():
+                session.add(AppSettings(key=skey, value=str(default), updated_at=datetime.utcnow()))
+        await session.commit()
+        result = await session.execute(
+            select(AppSettings).where(AppSettings.key.like("premium_price_%"))
+        )
+        rows = result.scalars().all()
+        prices = dict(defaults)
+        for row in rows:
+            period = row.key.replace("premium_price_", "")
+            try:
+                prices[period] = int(float(row.value))
+            except Exception:
+                pass
+    return prices
+
+
+async def set_premium_price(admin_telegram_id: int, period: str, price: int) -> dict:
+    valid = {'month', '3months', '6months', 'year'}
+    if period not in valid:
+        return {"ok": False, "error": "Неверный период"}
+    user = await get_user_by_telegram_id(admin_telegram_id)
+    if not user or not (admin_telegram_id in ADMIN_IDS or user.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    skey = f"premium_price_{period}"
+    async with async_session() as session:
+        res = await session.execute(select(AppSettings).where(AppSettings.key == skey))
+        row = res.scalar_one_or_none()
+        if row:
+            row.value = str(int(price))
+            row.updated_at = datetime.utcnow()
+        else:
+            session.add(AppSettings(key=skey, value=str(int(price)), updated_at=datetime.utcnow()))
+        await session.commit()
+    return {"ok": True}
+
+
 async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
-    prices = {
-        'month': 150000,
-        '3months': 350000,
-        '6months': 550000,
-        'year': 1000000
-    }
+    prices = await get_premium_prices()
     durations = {'month': 30, '3months': 90, '6months': 180, 'year': 365}
     price = prices.get(period)
     days = durations.get(period)
@@ -281,13 +347,14 @@ async def get_all_vpn_configs() -> list[VPNConfig]:
         return result.scalars().all()
 
 
-async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by) -> VPNConfig:
+async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False) -> VPNConfig:
     async with async_session() as session:
         vpn = VPNConfig(
             name=name, description=description, config_data=config_data,
             price_clicks=price_clicks, duration_days=duration_days,
             quantity=quantity, quantity_left=quantity,
-            available_until=available_until, created_by=created_by
+            available_until=available_until, created_by=created_by,
+            is_premium_only=is_premium_only
         )
         session.add(vpn)
         await session.commit()
@@ -338,6 +405,8 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         vpn = vpn_res.scalar_one_or_none()
         if not vpn:
             return {"ok": False, "error": "VPN конфиг не найден или недоступен"}
+        if vpn.is_premium_only and not user.is_premium:
+            return {"ok": False, "error": "Этот VPN только для Premium пользователей"}
         effective_price = vpn.price_clicks * (0.9 if user.is_premium else 1.0)
         if user.balance < effective_price:
             return {"ok": False, "error": f"Нужно {int(effective_price)} кликов"}
@@ -375,6 +444,23 @@ async def get_user_vpn_purchases(telegram_id: int) -> list:
                 "config_data": vpn.config_data if vpn else ""
             })
         return out
+
+
+async def delete_vpn_purchase(telegram_id: int, purchase_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        p_res = await session.execute(
+            select(VPNPurchase).where(VPNPurchase.id == purchase_id, VPNPurchase.user_id == user.id)
+        )
+        purchase = p_res.scalar_one_or_none()
+        if not purchase:
+            return {"ok": False, "error": "Запись не найдена"}
+        await session.delete(purchase)
+        await session.commit()
+        return {"ok": True}
 
 
 async def adjust_balance(telegram_id: int, amount: float) -> dict:
@@ -491,6 +577,64 @@ async def get_all_vpn_purchases() -> list[VPNPurchase]:
         return result.scalars().all()
 
 
+async def get_user_upgrades_admin(telegram_id: int) -> list:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return []
+        result = await session.execute(
+            select(UserUpgrade, ClickUpgrade)
+            .join(ClickUpgrade, UserUpgrade.upgrade_id == ClickUpgrade.id)
+            .where(UserUpgrade.user_id == user.id)
+            .order_by(UserUpgrade.purchased_at.asc())
+        )
+        rows = result.all()
+        return [
+            {
+                "user_upgrade_id": uu.id,
+                "upgrade_id": cu.id,
+                "name": cu.name,
+                "icon": cu.icon,
+                "upgrade_type": cu.upgrade_type,
+                "clicks_bonus": cu.clicks_bonus,
+                "auto_click_bonus": cu.auto_click_bonus,
+                "price": cu.price,
+                "purchased_at": uu.purchased_at.isoformat()
+            }
+            for uu, cu in rows
+        ]
+
+
+async def remove_user_upgrade(admin_telegram_id: int, target_telegram_id: int, user_upgrade_id: int) -> dict:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    async with async_session() as session:
+        target_res = await session.execute(select(User).where(User.telegram_id == target_telegram_id))
+        target = target_res.scalar_one_or_none()
+        if not target:
+            return {"ok": False, "error": "Пользователь не найден"}
+        uu_res = await session.execute(
+            select(UserUpgrade).where(UserUpgrade.id == user_upgrade_id, UserUpgrade.user_id == target.id)
+        )
+        uu = uu_res.scalar_one_or_none()
+        if not uu:
+            return {"ok": False, "error": "Улучшение не найдено"}
+        cu_res = await session.execute(select(ClickUpgrade).where(ClickUpgrade.id == uu.upgrade_id))
+        cu = cu_res.scalar_one_or_none()
+        if cu:
+            if cu.upgrade_type == "click":
+                target.clicks_per_click = max(1, target.clicks_per_click - cu.clicks_bonus)
+            elif cu.upgrade_type == "autoclk":
+                target.auto_clicks_per_second = max(0, target.auto_clicks_per_second - cu.auto_click_bonus)
+        await session.delete(uu)
+        await session.commit()
+        name = cu.name if cu else f"ID {user_upgrade_id}"
+    await add_user_log(target.id, target.telegram_id, "upgrade_remove", f"Улучшение «{name}» удалено администратором")
+    return {"ok": True}
+
+
 async def admin_delete_upgrade(upgrade_id: int) -> dict:
     async with async_session() as session:
         result = await session.execute(select(ClickUpgrade).where(ClickUpgrade.id == upgrade_id))
@@ -600,8 +744,29 @@ async def seed_achievements():
             Achievement(name="Охотник за Акциями", description="Откройте магазин во время активной акции", icon="🎉", condition_type="promo_exists", condition_value="0"),
             Achievement(name="Путешественник Вселенных", description="Попробуйте все 15 тем оформления", icon="🎨", condition_type="all_themes_tried", condition_value="15"),
             Achievement(name="Накопитель", description="Соберите 100 000 кликов на балансе", icon="💎", condition_type="balance_max_gte", condition_value="100000"),
+            Achievement(name="Постоянный гость", description="Заходите в приложение 7 дней подряд", icon="🔥", condition_type="login_streak_gte", condition_value="7"),
+            Achievement(name="Верный пользователь", description="Зайдите в приложение 30 дней", icon="📅", condition_type="login_days_gte", condition_value="30"),
+            Achievement(name="Легенда", description="Зайдите в приложение 100 дней", icon="🏅", condition_type="login_days_gte", condition_value="100"),
+            Achievement(name="Машина кликов", description="Получите 5 авто-кликов в секунду", icon="🤖", condition_type="autoclk_gte", condition_value="5"),
+            Achievement(name="Кибер-завод", description="Получите 10 авто-кликов в секунду", icon="🏭", condition_type="autoclk_gte", condition_value="10"),
         ]
         session.add_all(items)
+        await session.commit()
+
+
+async def seed_new_achievements():
+    new_items = [
+        {"name": "Постоянный гость", "description": "Заходите в приложение 7 дней подряд", "icon": "🔥", "condition_type": "login_streak_gte", "condition_value": "7"},
+        {"name": "Верный пользователь", "description": "Зайдите в приложение 30 дней", "icon": "📅", "condition_type": "login_days_gte", "condition_value": "30"},
+        {"name": "Легенда", "description": "Зайдите в приложение 100 дней", "icon": "🏅", "condition_type": "login_days_gte", "condition_value": "100"},
+        {"name": "Машина кликов", "description": "Получите 5 авто-кликов в секунду", "icon": "🤖", "condition_type": "autoclk_gte", "condition_value": "5"},
+        {"name": "Кибер-завод", "description": "Получите 10 авто-кликов в секунду", "icon": "🏭", "condition_type": "autoclk_gte", "condition_value": "10"},
+    ]
+    async with async_session() as session:
+        for item in new_items:
+            res = await session.execute(select(Achievement).where(Achievement.name == item["name"]))
+            if not res.scalar_one_or_none():
+                session.add(Achievement(**item))
         await session.commit()
 
 
@@ -611,7 +776,6 @@ async def get_achievements(telegram_id: int) -> list:
         user = user_res.scalar_one_or_none()
         if not user:
             return []
-
         ach_res = await session.execute(
             select(Achievement).where(Achievement.is_active == True).order_by(Achievement.id)
         )
@@ -706,6 +870,12 @@ async def check_and_unlock_achievements(telegram_id: int, client_state: dict) ->
                 unlocked = promo_active
             elif ct == "all_themes_tried":
                 unlocked = client_state.get("themes_tried_count", 0) >= int(cv)
+            elif ct == "login_days_gte":
+                unlocked = (user.login_days_count or 0) >= int(cv)
+            elif ct == "login_streak_gte":
+                unlocked = (user.login_streak or 0) >= int(cv)
+            elif ct == "autoclk_gte":
+                unlocked = user.auto_clicks_per_second >= cv
 
             if unlocked:
                 ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
@@ -892,3 +1062,346 @@ async def get_users_premium_expiring(hours_ahead: int = 24) -> list:
             }
             for u in users
         ]
+
+
+async def get_unsent_vpn_configs() -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(VPNConfig).where(
+                VPNConfig.notify_sent == False,
+                VPNConfig.is_active == True
+            )
+        )
+        return result.scalars().all()
+
+
+async def mark_vpn_notified(vpn_id: int):
+    async with async_session() as session:
+        result = await session.execute(select(VPNConfig).where(VPNConfig.id == vpn_id))
+        vpn = result.scalar_one_or_none()
+        if vpn:
+            vpn.notify_sent = True
+            await session.commit()
+
+
+async def get_users_with_vpn_notify() -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.vpn_notify_enabled == True)
+        )
+        return result.scalars().all()
+
+
+# ── User settings & profile ───────────────────────────────────
+
+async def save_user_settings(telegram_id: int, vpn_notify: bool = None, offline_income: bool = None) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if vpn_notify is not None:
+            user.vpn_notify_enabled = vpn_notify
+        if offline_income is not None:
+            if not user.is_premium:
+                return {"ok": False, "error": "Требуется Premium"}
+            user.offline_income_enabled = offline_income
+        await session.commit()
+        return {"ok": True}
+
+
+async def update_user_profile(telegram_id: int, bio: str = None, badge: str = None) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if not user.is_premium:
+            return {"ok": False, "error": "Кастомный профиль только для Premium"}
+        if bio is not None:
+            user.profile_bio = bio[:200] if bio else None
+        if badge is not None:
+            user.profile_badge = badge[:20] if badge else None
+        await session.commit()
+        return {"ok": True}
+
+
+async def claim_offline_income(telegram_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "earned": 0}
+        if not user.is_premium or not user.offline_income_enabled:
+            return {"ok": True, "earned": 0}
+        if user.auto_clicks_per_second <= 0:
+            return {"ok": True, "earned": 0}
+        now = datetime.utcnow()
+        last = user.last_offline_check or user.created_at or now
+        offline_secs = min((now - last).total_seconds(), 12 * 3600)
+        if offline_secs < 60:
+            return {"ok": True, "earned": 0}
+        earned = offline_secs * user.auto_clicks_per_second * 1.5
+        earned = int(earned)
+        user.balance += earned
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        user.last_offline_check = now
+        await session.commit()
+    if earned > 0:
+        await add_user_log(user.id, telegram_id, "offline_income", f"Оффлайн-доход: +{earned} кликов за {int(offline_secs//60)} мин")
+    return {"ok": True, "earned": earned, "seconds": int(offline_secs), "new_balance": user.balance}
+
+
+# ── Roulette ──────────────────────────────────────────────────
+
+ROULETTE_SEGMENTS = [
+    {"label": "💀 Потеря",  "mult": 0.0,  "color": "#e53e3e", "weight": 8},
+    {"label": "😢 ×0.5",   "mult": 0.5,  "color": "#ed8936", "weight": 17},
+    {"label": "😐 Возврат", "mult": 1.0,  "color": "#718096", "weight": 20},
+    {"label": "😊 ×1.5",   "mult": 1.5,  "color": "#38a169", "weight": 25},
+    {"label": "🎉 ×2",     "mult": 2.0,  "color": "#3182ce", "weight": 20},
+    {"label": "🌟 ×5",     "mult": 5.0,  "color": "#d69e2e", "weight": 10},
+]
+
+
+async def spin_roulette(telegram_id: int, bet: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if bet < 100:
+            return {"ok": False, "error": "Минимальная ставка: 100 кликов"}
+        if bet > user.balance:
+            return {"ok": False, "error": "Недостаточно кликов"}
+        max_bet = min(int(user.balance * 0.5), 500000)
+        if bet > max_bet:
+            return {"ok": False, "error": f"Максимальная ставка: {max_bet}"}
+
+        weights = [s["weight"] for s in ROULETTE_SEGMENTS]
+        segment = random.choices(ROULETTE_SEGMENTS, weights=weights, k=1)[0]
+        payout = int(bet * segment["mult"])
+        user.balance = user.balance - bet + payout
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        await session.commit()
+        uid = user.id
+    delta = payout - bet
+    sign = "+" if delta >= 0 else ""
+    await add_user_log(uid, telegram_id, "roulette", f"Рулетка: ставка {bet}, {segment['label']}, {sign}{delta}")
+    return {
+        "ok": True,
+        "segment": segment,
+        "bet": bet,
+        "payout": payout,
+        "delta": delta,
+        "new_balance": user.balance
+    }
+
+
+# ── Avatars ───────────────────────────────────────────────────
+
+AVATAR_SEED = [
+    {"name": "Робот",      "emoji": "🤖", "price": 500,   "description": "Стальной помощник"},
+    {"name": "Кот",        "emoji": "🐱", "price": 500,   "description": "Мурчащий аватар"},
+    {"name": "Дракон",     "emoji": "🐲", "price": 1000,  "description": "Огнедышащий"},
+    {"name": "Пришелец",   "emoji": "👽", "price": 1500,  "description": "Не с этой планеты"},
+    {"name": "Ниндзя",     "emoji": "🥷", "price": 2000,  "description": "Невидимый воин"},
+    {"name": "Маг",        "emoji": "🧙", "price": 2000,  "description": "Властелин заклинаний"},
+    {"name": "Дьявол",     "emoji": "😈", "price": 3000,  "description": "Тёмная сила"},
+    {"name": "Ангел",      "emoji": "😇", "price": 3000,  "description": "Небесный защитник"},
+    {"name": "Лис",        "emoji": "🦊", "price": 3000,  "description": "Хитрый и ловкий"},
+    {"name": "Лев",        "emoji": "🦁", "price": 5000,  "description": "Царь зверей"},
+    {"name": "Дракон II",  "emoji": "🐉", "price": 8000,  "description": "Легендарный дракон"},
+    {"name": "Корона",     "emoji": "👑", "price": 10000, "description": "Для настоящих королей"},
+]
+
+
+async def seed_avatars():
+    async with async_session() as session:
+        result = await session.execute(select(func.count(Avatar.id)))
+        if result.scalar() > 0:
+            return
+        for av in AVATAR_SEED:
+            session.add(Avatar(**av))
+        await session.commit()
+
+
+async def get_avatars_with_ownership(telegram_id: int) -> list:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return []
+        av_res = await session.execute(select(Avatar).where(Avatar.is_active == True).order_by(Avatar.price))
+        avatars = av_res.scalars().all()
+        owned_res = await session.execute(select(UserAvatar.avatar_id).where(UserAvatar.user_id == user.id))
+        owned_ids = set(owned_res.scalars().all())
+        return [
+            {
+                "id": a.id, "name": a.name, "emoji": a.emoji, "price": a.price,
+                "description": a.description, "owned": a.id in owned_ids,
+                "equipped": a.emoji == user.equipped_avatar
+            }
+            for a in avatars
+        ]
+
+
+async def buy_avatar(telegram_id: int, avatar_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        av_res = await session.execute(select(Avatar).where(Avatar.id == avatar_id, Avatar.is_active == True))
+        av = av_res.scalar_one_or_none()
+        if not av:
+            return {"ok": False, "error": "Аватар не найден"}
+        owned = await session.execute(
+            select(UserAvatar).where(UserAvatar.user_id == user.id, UserAvatar.avatar_id == avatar_id)
+        )
+        if owned.scalar_one_or_none():
+            return {"ok": False, "error": "Уже куплено"}
+        if user.balance < av.price:
+            return {"ok": False, "error": f"Нужно {int(av.price)} кликов"}
+        user.balance -= av.price
+        session.add(UserAvatar(user_id=user.id, avatar_id=avatar_id))
+        await session.commit()
+    await add_user_log(user.id, telegram_id, "avatar_buy", f"Куплен аватар «{av.name}» за {int(av.price)} кликов")
+    return {"ok": True, "new_balance": user.balance}
+
+
+async def equip_avatar(telegram_id: int, avatar_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if avatar_id == 0:
+            user.equipped_avatar = "👤"
+            await session.commit()
+            return {"ok": True, "emoji": "👤"}
+        owned = await session.execute(
+            select(UserAvatar).where(UserAvatar.user_id == user.id, UserAvatar.avatar_id == avatar_id)
+        )
+        if not owned.scalar_one_or_none():
+            return {"ok": False, "error": "Сначала купите аватар"}
+        av_res = await session.execute(select(Avatar).where(Avatar.id == avatar_id))
+        av = av_res.scalar_one_or_none()
+        if not av:
+            return {"ok": False, "error": "Аватар не найден"}
+        user.equipped_avatar = av.emoji
+        await session.commit()
+        return {"ok": True, "emoji": av.emoji}
+
+
+# ── Promo Codes ───────────────────────────────────────────────
+
+async def admin_create_promo_code(admin_telegram_id: int, code: str, name: str, amount: float, max_activations: int, expires_at=None) -> dict:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    async with async_session() as session:
+        existing = await session.execute(select(PromoCode).where(PromoCode.code == code.upper()))
+        if existing.scalar_one_or_none():
+            return {"ok": False, "error": "Такой код уже существует"}
+        pc = PromoCode(
+            code=code.upper().strip(),
+            name=name,
+            amount=amount,
+            max_activations=max_activations,
+            expires_at=expires_at,
+            created_by=admin_telegram_id
+        )
+        session.add(pc)
+        await session.commit()
+        await session.refresh(pc)
+        return {"ok": True, "id": pc.id}
+
+
+async def admin_edit_promo_code(admin_telegram_id: int, code_id: int, **kwargs) -> dict:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    async with async_session() as session:
+        res = await session.execute(select(PromoCode).where(PromoCode.id == code_id))
+        pc = res.scalar_one_or_none()
+        if not pc:
+            return {"ok": False, "error": "Не найден"}
+        for k, v in kwargs.items():
+            if hasattr(pc, k) and v is not None:
+                if k == "code":
+                    v = v.upper().strip()
+                setattr(pc, k, v)
+        await session.commit()
+        return {"ok": True}
+
+
+async def admin_delete_promo_code(admin_telegram_id: int, code_id: int) -> dict:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    async with async_session() as session:
+        res = await session.execute(select(PromoCode).where(PromoCode.id == code_id))
+        pc = res.scalar_one_or_none()
+        if not pc:
+            return {"ok": False, "error": "Не найден"}
+        await session.delete(pc)
+        await session.commit()
+        return {"ok": True}
+
+
+async def admin_get_promo_codes(admin_telegram_id: int) -> list:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return []
+    async with async_session() as session:
+        res = await session.execute(select(PromoCode).order_by(PromoCode.created_at.desc()))
+        codes = res.scalars().all()
+        return [
+            {
+                "id": pc.id, "code": pc.code, "name": pc.name, "amount": pc.amount,
+                "max_activations": pc.max_activations, "activations_used": pc.activations_used,
+                "expires_at": pc.expires_at.isoformat() if pc.expires_at else None,
+                "is_active": pc.is_active, "created_at": pc.created_at.isoformat()
+            }
+            for pc in codes
+        ]
+
+
+async def activate_promo_code(telegram_id: int, code: str) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+
+        pc_res = await session.execute(select(PromoCode).where(PromoCode.code == code.upper().strip()))
+        pc = pc_res.scalar_one_or_none()
+        if not pc:
+            return {"ok": False, "error": "Промокод не найден"}
+        if not pc.is_active:
+            return {"ok": False, "error": "Промокод деактивирован"}
+        if pc.expires_at and pc.expires_at < datetime.utcnow():
+            return {"ok": False, "error": "Промокод истёк"}
+        if pc.activations_used >= pc.max_activations:
+            return {"ok": False, "error": "Промокод исчерпан"}
+
+        already = await session.execute(
+            select(PromoCodeActivation).where(
+                PromoCodeActivation.promo_code_id == pc.id,
+                PromoCodeActivation.user_id == user.id
+            )
+        )
+        if already.scalar_one_or_none():
+            return {"ok": False, "error": "Вы уже активировали этот промокод"}
+
+        pc.activations_used += 1
+        user.balance += pc.amount
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        session.add(PromoCodeActivation(promo_code_id=pc.id, user_id=user.id))
+        await session.commit()
+    await add_user_log(user.id, telegram_id, "promo_activate", f"Активирован промокод «{pc.name}» (+{int(pc.amount)} кликов)")
+    return {"ok": True, "amount": pc.amount, "name": pc.name, "new_balance": user.balance}
