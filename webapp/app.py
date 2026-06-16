@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -28,7 +28,7 @@ from database.db import (
     get_avatars_with_ownership, buy_avatar, equip_avatar,
     spin_roulette,
     admin_create_promo_code, admin_edit_promo_code,
-    admin_delete_promo_code, admin_get_promo_codes, activate_promo_code,
+    admin_delete_promo_code, admin_get_promo_codes, activate_promo_code, toggle_promo_code,
     save_user_settings, update_user_profile, claim_offline_income
 )
 from config import ADMIN_IDS
@@ -44,7 +44,18 @@ def check_admin(telegram_id: int, user_is_admin: bool) -> bool:
 
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    file_path = os.path.join(STATIC_DIR, "index.html")
+    with open(file_path, "rb") as f:
+        content = f.read()
+    return Response(
+        content=content,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+    )
 
 
 @app.get("/api/user/{telegram_id}")
@@ -760,3 +771,14 @@ class PromoCodeDelete(BaseModel):
 async def admin_del_promo(data: PromoCodeDelete):
     await require_admin(data.admin_telegram_id)
     return await admin_delete_promo_code(data.admin_telegram_id, data.code_id)
+
+
+class PromoCodeToggle(BaseModel):
+    admin_telegram_id: int
+    code_id: int
+
+
+@app.post("/api/admin/promo-codes/toggle")
+async def admin_toggle_promo_code(data: PromoCodeToggle):
+    await require_admin(data.admin_telegram_id)
+    return await toggle_promo_code(data.admin_telegram_id, data.code_id)

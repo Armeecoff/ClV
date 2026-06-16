@@ -1087,7 +1087,10 @@ async def mark_vpn_notified(vpn_id: int):
 async def get_users_with_vpn_notify() -> list:
     async with async_session() as session:
         result = await session.execute(
-            select(User).where(User.vpn_notify_enabled == True)
+            select(User).where(
+                User.vpn_notify_enabled == True,
+                User.is_premium == True
+            )
         )
         return result.scalars().all()
 
@@ -1156,12 +1159,13 @@ async def claim_offline_income(telegram_id: int) -> dict:
 # ── Roulette ──────────────────────────────────────────────────
 
 ROULETTE_SEGMENTS = [
-    {"label": "💀 Потеря",  "mult": 0.0,  "color": "#e53e3e", "weight": 8},
-    {"label": "😢 ×0.5",   "mult": 0.5,  "color": "#ed8936", "weight": 17},
-    {"label": "😐 Возврат", "mult": 1.0,  "color": "#718096", "weight": 20},
-    {"label": "😊 ×1.5",   "mult": 1.5,  "color": "#38a169", "weight": 25},
-    {"label": "🎉 ×2",     "mult": 2.0,  "color": "#3182ce", "weight": 20},
-    {"label": "🌟 ×5",     "mult": 5.0,  "color": "#d69e2e", "weight": 10},
+    {"label": "💀 Потеря",   "mult": 0.0,  "color": "#e53e3e", "weight": 20},
+    {"label": "😢 ×0.5",    "mult": 0.5,  "color": "#ed8936", "weight": 24},
+    {"label": "🤏 ×0.75",   "mult": 0.75, "color": "#c05621", "weight": 25},
+    {"label": "😐 Возврат", "mult": 1.0,  "color": "#718096", "weight": 15},
+    {"label": "😊 ×1.5",   "mult": 1.5,  "color": "#38a169", "weight": 10},
+    {"label": "🎉 ×2",     "mult": 2.0,  "color": "#3182ce", "weight": 5},
+    {"label": "🌟 ×5",     "mult": 5.0,  "color": "#d69e2e", "weight": 1},
 ]
 
 
@@ -1318,6 +1322,20 @@ async def admin_create_promo_code(admin_telegram_id: int, code: str, name: str, 
         await session.commit()
         await session.refresh(pc)
         return {"ok": True, "id": pc.id}
+
+
+async def toggle_promo_code(admin_telegram_id: int, code_id: int) -> dict:
+    admin = await get_user_by_telegram_id(admin_telegram_id)
+    if not admin or not (admin_telegram_id in ADMIN_IDS or admin.is_admin):
+        return {"ok": False, "error": "Нет доступа"}
+    async with async_session() as session:
+        res = await session.execute(select(PromoCode).where(PromoCode.id == code_id))
+        pc = res.scalar_one_or_none()
+        if not pc:
+            return {"ok": False, "error": "Не найден"}
+        pc.is_active = not pc.is_active
+        await session.commit()
+        return {"ok": True, "is_active": pc.is_active}
 
 
 async def admin_edit_promo_code(admin_telegram_id: int, code_id: int, **kwargs) -> dict:
