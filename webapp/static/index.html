@@ -243,10 +243,9 @@ select.form-input { cursor:pointer; }
 .skin-price { font-size:10px; color:var(--yellow); margin-top:2px; }
 
 /* ══ ADMIN TABS ══ */
-.admin-tabs { display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; position:sticky; top:0; z-index:10; background:var(--bg); margin:0 -16px; padding:8px 16px; border-bottom:1px solid var(--border); margin-bottom:14px; }
-.admin-tabs::-webkit-scrollbar { display:none; }
-.admin-tab { flex-shrink:0; white-space:nowrap; text-align:center; border:none; border-radius:8px; padding:7px 12px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; }
-.admin-tab.active { background:var(--accent); color:#fff; }
+.admin-tabs { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+.admin-tab { flex:1 1 calc(25% - 4px); min-width:0; text-align:center; border:none; border-radius:9px; padding:10px 2px; font-size:11px; font-weight:700; cursor:pointer; background:var(--bg2); border:1px solid var(--border); color:var(--text2); transition:all .18s; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 
 .log-filter-btn { border:1px solid var(--border); background:var(--bg3); color:var(--text2); border-radius:8px; padding:4px 9px; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .log-filter-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -303,9 +302,8 @@ select.form-input { cursor:pointer; }
 .premium-banner .icon { font-size:28px; }
 
 /* ══ SHOP TABS ══ */
-.shop-tabs { display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:0 0 8px; position:sticky; top:0; z-index:10; background:var(--bg); margin:0 -16px; padding:8px 16px; border-bottom:1px solid var(--border); margin-bottom:14px; }
-.shop-tabs::-webkit-scrollbar { display:none; }
-.shop-tab { flex-shrink:0; white-space:nowrap; text-align:center; border:none; border-radius:10px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; background:var(--bg3); color:var(--text2); transition:all .2s; border:1px solid var(--border); }
+.shop-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.shop-tab { flex:1 1 calc(50% - 3px); min-width:0; text-align:center; border:none; border-radius:10px; padding:12px 6px; font-size:13px; font-weight:700; cursor:pointer; background:var(--bg2); border:1px solid var(--border); color:var(--text2); transition:all .18s; }
 .shop-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 
 /* ══ PROMO CARD ══ */
@@ -413,14 +411,14 @@ select.form-input { cursor:pointer; }
     <div><div class="balance-label">💰 Баланс</div><div class="balance-value" id="shop-balance">0</div></div>
     <span class="cpc-badge" id="shop-cpc">+1/клик</span>
   </div>
-  <div style="padding:0 0 10px;display:flex;gap:8px">
-    <button class="btn btn-outline" style="flex:1;font-size:13px" onclick="openPromoCodeModal()">🎟 Промокод</button>
+  <div style="padding:0 0 8px;display:flex;gap:8px">
+    <button class="btn btn-outline" style="flex:1;font-size:12px;padding:8px" onclick="openPromoCodeModal()">🎟 Промокод</button>
   </div>
-  <div class="shop-tabs" style="display:flex;overflow-x:auto;gap:6px;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
-    <button class="shop-tab active" id="stab-upgrades" onclick="switchShopTab('upgrades')" style="white-space:nowrap;flex-shrink:0">⚡ Улучшения</button>
-    <button class="shop-tab" id="stab-items" onclick="switchShopTab('items')" style="white-space:nowrap;flex-shrink:0">🎁 Предметы</button>
-    <button class="shop-tab" id="stab-avatars" onclick="switchShopTab('avatars')" style="white-space:nowrap;flex-shrink:0">🎭 Аватары</button>
-    <button class="shop-tab" id="stab-promos" onclick="switchShopTab('promos')" style="white-space:nowrap;flex-shrink:0">🎉 Акции</button>
+  <div class="shop-tabs">
+    <button class="shop-tab active" id="stab-upgrades" onclick="switchShopTab('upgrades')">⚡ Улучшения</button>
+    <button class="shop-tab" id="stab-items" onclick="switchShopTab('items')">🎁 Предметы</button>
+    <button class="shop-tab" id="stab-avatars" onclick="switchShopTab('avatars')">🎭 Аватары</button>
+    <button class="shop-tab" id="stab-promos" onclick="switchShopTab('promos')">🎉 Акции</button>
   </div>
   <div id="shop-tab-upgrades">
     <div id="shop-premium-section"></div>
@@ -615,15 +613,15 @@ select.form-input { cursor:pointer; }
 <!-- ADMIN -->
 <div id="page-admin" class="page">
   <div class="header"><h1>🛠 Админ-панель</h1></div>
-  <div class="admin-tabs" style="overflow-x:auto;display:flex;gap:6px;flex-wrap:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
-    <button class="admin-tab active" onclick="switchAdminTab('vpn')" style="white-space:nowrap;flex-shrink:0">VPN</button>
-    <button class="admin-tab" onclick="switchAdminTab('upgrades')" style="white-space:nowrap;flex-shrink:0">Улучшения</button>
-    <button class="admin-tab" onclick="switchAdminTab('users')" style="white-space:nowrap;flex-shrink:0">Юзеры</button>
-    <button class="admin-tab" onclick="switchAdminTab('balance')" style="white-space:nowrap;flex-shrink:0">Баланс</button>
-    <button class="admin-tab" onclick="switchAdminTab('promos')" style="white-space:nowrap;flex-shrink:0">Акции</button>
-    <button class="admin-tab" onclick="switchAdminTab('promoCodes')" style="white-space:nowrap;flex-shrink:0">🎟 Промокоды</button>
-    <button class="admin-tab" onclick="switchAdminTab('logs')" style="white-space:nowrap;flex-shrink:0">📋 Логи</button>
-    <button class="admin-tab" onclick="switchAdminTab('achievements')" style="white-space:nowrap;flex-shrink:0">🏆 Ачивки</button>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('vpn')">VPN</button>
+    <button class="admin-tab" onclick="switchAdminTab('upgrades')">Апгрейды</button>
+    <button class="admin-tab" onclick="switchAdminTab('users')">Юзеры</button>
+    <button class="admin-tab" onclick="switchAdminTab('balance')">Баланс</button>
+    <button class="admin-tab" onclick="switchAdminTab('promos')">Акции</button>
+    <button class="admin-tab" onclick="switchAdminTab('promoCodes')">🎟 Коды</button>
+    <button class="admin-tab" onclick="switchAdminTab('logs')">📋 Логи</button>
+    <button class="admin-tab" onclick="switchAdminTab('achievements')">🏆 Ачивки</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -632,6 +630,18 @@ select.form-input { cursor:pointer; }
   </div>
 
   <div id="admin-tab-upgrades" style="display:none">
+    <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(212,175,55,.08),rgba(80,30,150,.05));border-color:#6a4800">
+      <div style="font-weight:700;color:#f5d060;margin-bottom:10px">💰 Цены Premium подписки</div>
+      <div id="admin-premium-prices-form">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">1 месяц</div><input class="form-input" type="number" id="price-month" style="font-size:13px"></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">3 месяца</div><input class="form-input" type="number" id="price-3months" style="font-size:13px"></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">6 месяцев</div><input class="form-input" type="number" id="price-6months" style="font-size:13px"></div>
+          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">1 год</div><input class="form-input" type="number" id="price-year" style="font-size:13px"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#d4af37,#b8860b)" onclick="saveAdminPremiumPrices()">💾 Сохранить цены</button>
+      </div>
+    </div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddUpgradeModal()">➕ Добавить улучшение</button>
     <div id="admin-upgrades-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
@@ -686,18 +696,6 @@ select.form-input { cursor:pointer; }
   </div>
 
   <div id="admin-tab-achievements" style="display:none">
-    <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(212,175,55,.08),rgba(80,30,150,.05));border-color:#6a4800">
-      <div style="font-weight:700;color:#f5d060;margin-bottom:10px">💰 Цены Premium подписки</div>
-      <div id="admin-premium-prices-form">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">1 месяц</div><input class="form-input" type="number" id="price-month" style="font-size:13px"></div>
-          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">3 месяца</div><input class="form-input" type="number" id="price-3months" style="font-size:13px"></div>
-          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">6 месяцев</div><input class="form-input" type="number" id="price-6months" style="font-size:13px"></div>
-          <div><div style="font-size:10px;color:var(--text2);margin-bottom:3px">1 год</div><input class="form-input" type="number" id="price-year" style="font-size:13px"></div>
-        </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#d4af37,#b8860b)" onclick="saveAdminPremiumPrices()">💾 Сохранить цены</button>
-      </div>
-    </div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddAchModal()">➕ Добавить ачивку</button>
     <div id="admin-ach-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
@@ -2624,6 +2622,7 @@ async function loadAdminVPN() {
 
 async function loadAdminUpgrades() {
   if (!S.user) return;
+  loadAdminPremiumPrices();
   const c = document.getElementById('admin-upgrades-list');
   c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
@@ -3401,7 +3400,6 @@ async function saveAdminPremiumPrices() {
 
 async function loadAdminAchievements() {
   if (!S.user) return;
-  loadAdminPremiumPrices();
   const c = document.getElementById('admin-ach-list');
   c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
