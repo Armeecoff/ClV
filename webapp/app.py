@@ -25,11 +25,13 @@ from database.db import (
     get_user_extended_history,
     get_premium_prices, set_premium_price,
     get_user_upgrades_admin, remove_user_upgrade,
-    get_avatars_with_ownership, buy_avatar, equip_avatar,
+    get_avatars_with_ownership, buy_avatar, equip_avatar, equip_frame,
     spin_roulette,
     admin_create_promo_code, admin_edit_promo_code,
     admin_delete_promo_code, admin_get_promo_codes, activate_promo_code, toggle_promo_code,
-    save_user_settings, update_user_profile, claim_offline_income
+    save_user_settings, update_user_profile, claim_offline_income,
+    get_or_create_api_key, regenerate_api_key, get_user_by_api_key,
+    get_global_vpn_notify, set_global_vpn_notify
 )
 from config import ADMIN_IDS
 
@@ -74,7 +76,8 @@ async def get_user(telegram_id: int, username: str = None, first_name: str = Non
         "profile_badge": user.profile_badge,
         "vpn_notify_enabled": user.vpn_notify_enabled,
         "offline_income_enabled": user.offline_income_enabled,
-        "equipped_avatar": user.equipped_avatar or "👤"
+        "equipped_avatar": user.equipped_avatar or "👤",
+        "equipped_frame": user.equipped_frame or ""
     }
 
 
@@ -271,6 +274,29 @@ async def purchase_avatar(telegram_id: int, body: AvatarAction):
 @app.post("/api/avatars/equip/{telegram_id}")
 async def set_avatar(telegram_id: int, body: AvatarAction):
     return await equip_avatar(telegram_id, body.avatar_id)
+
+
+@app.post("/api/avatars/equip-frame/{telegram_id}")
+async def set_frame(telegram_id: int, body: AvatarAction):
+    return await equip_frame(telegram_id, body.avatar_id)
+
+
+@app.get("/api/admin/vpn-notify-global/{telegram_id}")
+async def get_vpn_notify_global(telegram_id: int):
+    await require_admin(telegram_id)
+    enabled = await get_global_vpn_notify()
+    return {"ok": True, "enabled": enabled}
+
+
+class GlobalNotifyToggle(BaseModel):
+    admin_telegram_id: int
+    enabled: bool
+
+
+@app.post("/api/admin/vpn-notify-global")
+async def toggle_vpn_notify_global(data: GlobalNotifyToggle):
+    await require_admin(data.admin_telegram_id)
+    return await set_global_vpn_notify(data.enabled)
 
 
 # ── Promo Codes (user) ────────────────────────────────────────
@@ -782,3 +808,48 @@ class PromoCodeToggle(BaseModel):
 async def admin_toggle_promo_code(data: PromoCodeToggle):
     await require_admin(data.admin_telegram_id)
     return await toggle_promo_code(data.admin_telegram_id, data.code_id)
+
+
+# ── API Keys ──────────────────────────────────────────
+
+@app.get("/api/user/api-key/{telegram_id}")
+async def user_get_api_key(telegram_id: int):
+    return await get_or_create_api_key(telegram_id)
+
+
+@app.post("/api/user/api-key/{telegram_id}/regenerate")
+async def user_regenerate_api_key(telegram_id: int):
+    return await regenerate_api_key(telegram_id)
+
+
+# ── Public API v1 (key-authenticated) ────────────────
+
+def _key_error():
+    raise HTTPException(status_code=401, detail={"ok": False, "error": "Неверный API-ключ"})
+
+
+@app.get("/api/v1/me")
+async def v1_me(key: str):
+    user = await get_user_by_api_key(key)
+    if not user:
+        _key_error()
+    return {"ok": True, "user": user}
+
+
+@app.get("/api/v1/balance")
+async def v1_balance(key: str):
+    user = await get_user_by_api_key(key)
+    if not user:
+        _key_error()
+    return {"ok": True, "balance": user["balance"], "clicks_per_click": user["clicks_per_click"], "auto_clicks_per_second": user["auto_clicks_per_second"]}
+
+
+@app.get("/api/v1/upgrades")
+async def v1_upgrades(key: str):
+    user = await get_user_by_api_key(key)
+    if not user:
+        _key_error()
+    ids = await get_user_upgrade_ids(user["telegram_id"])
+    all_upgrades = await get_upgrades()
+    owned = [u for u in all_upgrades if u["id"] in ids]
+    return {"ok": True, "upgrades": owned}

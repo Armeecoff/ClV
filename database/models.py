@@ -38,6 +38,7 @@ class User(Base):
     offline_income_enabled = Column(Boolean, default=False, nullable=False)
     last_offline_check = Column(DateTime, nullable=True)
     equipped_avatar = Column(String(20), default="👤", nullable=False)
+    equipped_frame = Column(String(200), default="", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
@@ -45,6 +46,7 @@ class User(Base):
     activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
     owned_avatars = relationship("UserAvatar", back_populates="user", cascade="all, delete-orphan")
+    api_key = relationship("ApiKey", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 class ClickUpgrade(Base):
@@ -183,6 +185,8 @@ class Avatar(Base):
     emoji = Column(String(20), nullable=False)
     price = Column(Float, nullable=False, default=0.0)
     description = Column(String(200), nullable=True)
+    item_type = Column(String(10), default="avatar", nullable=False)
+    border_css = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     owners = relationship("UserAvatar", back_populates="avatar")
@@ -226,3 +230,15 @@ class PromoCodeActivation(Base):
     activated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     promo_code = relationship("PromoCode", back_populates="activations")
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    key = Column(String(64), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="api_key")

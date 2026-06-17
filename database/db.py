@@ -6,8 +6,9 @@ from config import DATABASE_URL, ADMIN_IDS
 from database.models import (
     Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase,
     Promotion, UserActivityLog, Achievement, UserAchievement, AppSettings,
-    Avatar, UserAvatar, PromoCode, PromoCodeActivation
+    Avatar, UserAvatar, PromoCode, PromoCodeActivation, ApiKey
 )
+import secrets
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -40,6 +41,9 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_avatar VARCHAR(20) DEFAULT '👤' NOT NULL",
             "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS is_premium_only BOOLEAN DEFAULT FALSE NOT NULL",
             "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS notify_sent BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS item_type VARCHAR(10) DEFAULT 'avatar' NOT NULL",
+            "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS border_css VARCHAR(200) DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_frame VARCHAR(200) DEFAULT '' NOT NULL",
         ]
         for sql in migrations:
             try:
@@ -1207,28 +1211,42 @@ async def spin_roulette(telegram_id: int, bet: int) -> dict:
 # ── Avatars ───────────────────────────────────────────────────
 
 AVATAR_SEED = [
-    {"name": "Робот",      "emoji": "🤖", "price": 500,   "description": "Стальной помощник"},
-    {"name": "Кот",        "emoji": "🐱", "price": 500,   "description": "Мурчащий аватар"},
-    {"name": "Дракон",     "emoji": "🐲", "price": 1000,  "description": "Огнедышащий"},
-    {"name": "Пришелец",   "emoji": "👽", "price": 1500,  "description": "Не с этой планеты"},
-    {"name": "Ниндзя",     "emoji": "🥷", "price": 2000,  "description": "Невидимый воин"},
-    {"name": "Маг",        "emoji": "🧙", "price": 2000,  "description": "Властелин заклинаний"},
-    {"name": "Дьявол",     "emoji": "😈", "price": 3000,  "description": "Тёмная сила"},
-    {"name": "Ангел",      "emoji": "😇", "price": 3000,  "description": "Небесный защитник"},
-    {"name": "Лис",        "emoji": "🦊", "price": 3000,  "description": "Хитрый и ловкий"},
-    {"name": "Лев",        "emoji": "🦁", "price": 5000,  "description": "Царь зверей"},
-    {"name": "Дракон II",  "emoji": "🐉", "price": 8000,  "description": "Легендарный дракон"},
-    {"name": "Корона",     "emoji": "👑", "price": 10000, "description": "Для настоящих королей"},
+    {"name": "Робот",       "emoji": "🤖", "price": 500,   "description": "Стальной помощник",    "item_type": "avatar"},
+    {"name": "Кот",         "emoji": "🐱", "price": 500,   "description": "Мурчащий аватар",      "item_type": "avatar"},
+    {"name": "Дракон",      "emoji": "🐲", "price": 1000,  "description": "Огнедышащий",           "item_type": "avatar"},
+    {"name": "Пришелец",    "emoji": "👽", "price": 1500,  "description": "Не с этой планеты",     "item_type": "avatar"},
+    {"name": "Ниндзя",      "emoji": "🥷", "price": 2000,  "description": "Невидимый воин",        "item_type": "avatar"},
+    {"name": "Маг",         "emoji": "🧙", "price": 2000,  "description": "Властелин заклинаний",  "item_type": "avatar"},
+    {"name": "Дьявол",      "emoji": "😈", "price": 3000,  "description": "Тёмная сила",           "item_type": "avatar"},
+    {"name": "Ангел",       "emoji": "😇", "price": 3000,  "description": "Небесный защитник",     "item_type": "avatar"},
+    {"name": "Лис",         "emoji": "🦊", "price": 3000,  "description": "Хитрый и ловкий",       "item_type": "avatar"},
+    {"name": "Лев",         "emoji": "🦁", "price": 5000,  "description": "Царь зверей",           "item_type": "avatar"},
+    {"name": "Дракон II",   "emoji": "🐉", "price": 8000,  "description": "Легендарный дракон",    "item_type": "avatar"},
+    {"name": "Корона",      "emoji": "👑", "price": 10000, "description": "Для настоящих королей", "item_type": "avatar"},
+    {"name": "Волк",        "emoji": "🐺", "price": 3500,  "description": "Вожак стаи",            "item_type": "avatar"},
+    {"name": "Тигр",        "emoji": "🐯", "price": 4000,  "description": "Полосатый хищник",      "item_type": "avatar"},
+    {"name": "Акула",       "emoji": "🦈", "price": 4500,  "description": "Король океана",         "item_type": "avatar"},
+    {"name": "Феникс",      "emoji": "🦅", "price": 6000,  "description": "Возрождается из пепла", "item_type": "avatar"},
+    {"name": "Единорог",    "emoji": "🦄", "price": 7000,  "description": "Магическое существо",   "item_type": "avatar"},
+    {"name": "Скелет",      "emoji": "💀", "price": 5500,  "description": "Берегись темноты",      "item_type": "avatar"},
+    {"name": "Клоун",       "emoji": "🤡", "price": 2500,  "description": "Смех сквозь слёзы",    "item_type": "avatar"},
+    {"name": "Астронавт",   "emoji": "👨‍🚀", "price": 8500,  "description": "Из далёкого космоса",  "item_type": "avatar"},
+    {"name": "Бронзовая",   "emoji": "🔵", "price": 1000,  "description": "Бронзовая рамка",       "item_type": "frame", "border_css": "outline: 3px solid #cd7f32; outline-offset: 2px; box-shadow: 0 0 8px #cd7f32"},
+    {"name": "Серебряная",  "emoji": "⚪", "price": 3000,  "description": "Серебряная рамка",      "item_type": "frame", "border_css": "outline: 3px solid #c0c0c0; outline-offset: 2px; box-shadow: 0 0 10px #c0c0c0"},
+    {"name": "Золотая",     "emoji": "🟡", "price": 6000,  "description": "Золотая рамка",         "item_type": "frame", "border_css": "outline: 3px solid #ffd700; outline-offset: 2px; box-shadow: 0 0 12px #ffd700"},
+    {"name": "Фиолетовая",  "emoji": "🟣", "price": 5000,  "description": "Фиолетовая рамка",      "item_type": "frame", "border_css": "outline: 3px solid #7c6cf7; outline-offset: 2px; box-shadow: 0 0 12px #7c6cf7"},
+    {"name": "Неоновая",    "emoji": "🟢", "price": 8000,  "description": "Неоновая зелёная",      "item_type": "frame", "border_css": "outline: 3px solid #00ff88; outline-offset: 2px; box-shadow: 0 0 14px #00ff88"},
+    {"name": "Огненная",    "emoji": "🔴", "price": 9000,  "description": "Огненная рамка",        "item_type": "frame", "border_css": "outline: 3px solid #ff4500; outline-offset: 2px; box-shadow: 0 0 14px #ff4500"},
+    {"name": "Алмазная",    "emoji": "💎", "price": 15000, "description": "Алмазная рамка",        "item_type": "frame", "border_css": "outline: 3px solid #b9f2ff; outline-offset: 2px; box-shadow: 0 0 16px #b9f2ff, 0 0 30px #7dd8ff"},
 ]
 
 
 async def seed_avatars():
     async with async_session() as session:
-        result = await session.execute(select(func.count(Avatar.id)))
-        if result.scalar() > 0:
-            return
         for av in AVATAR_SEED:
-            session.add(Avatar(**av))
+            existing = await session.execute(select(Avatar).where(Avatar.name == av["name"]))
+            if not existing.scalar_one_or_none():
+                session.add(Avatar(**av))
         await session.commit()
 
 
@@ -1245,8 +1263,11 @@ async def get_avatars_with_ownership(telegram_id: int) -> list:
         return [
             {
                 "id": a.id, "name": a.name, "emoji": a.emoji, "price": a.price,
-                "description": a.description, "owned": a.id in owned_ids,
-                "equipped": a.emoji == user.equipped_avatar
+                "description": a.description, "item_type": a.item_type or "avatar",
+                "border_css": a.border_css or "",
+                "owned": a.id in owned_ids,
+                "equipped": (a.item_type or "avatar") == "avatar" and a.emoji == user.equipped_avatar,
+                "equipped_frame": (a.item_type or "avatar") == "frame" and a.border_css == user.equipped_frame
             }
             for a in avatars
         ]
@@ -1298,6 +1319,49 @@ async def equip_avatar(telegram_id: int, avatar_id: int) -> dict:
         user.equipped_avatar = av.emoji
         await session.commit()
         return {"ok": True, "emoji": av.emoji}
+
+
+async def equip_frame(telegram_id: int, avatar_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if avatar_id == 0:
+            user.equipped_frame = ""
+            await session.commit()
+            return {"ok": True, "border_css": ""}
+        owned = await session.execute(
+            select(UserAvatar).where(UserAvatar.user_id == user.id, UserAvatar.avatar_id == avatar_id)
+        )
+        if not owned.scalar_one_or_none():
+            return {"ok": False, "error": "Сначала купите рамку"}
+        av_res = await session.execute(select(Avatar).where(Avatar.id == avatar_id, Avatar.item_type == "frame"))
+        av = av_res.scalar_one_or_none()
+        if not av:
+            return {"ok": False, "error": "Рамка не найдена"}
+        user.equipped_frame = av.border_css or ""
+        await session.commit()
+        return {"ok": True, "border_css": av.border_css or ""}
+
+
+async def get_global_vpn_notify() -> bool:
+    async with async_session() as session:
+        res = await session.execute(select(AppSettings).where(AppSettings.key == "vpn_notify_global"))
+        setting = res.scalar_one_or_none()
+        return setting.value == "1" if setting else True
+
+
+async def set_global_vpn_notify(enabled: bool) -> dict:
+    async with async_session() as session:
+        res = await session.execute(select(AppSettings).where(AppSettings.key == "vpn_notify_global"))
+        setting = res.scalar_one_or_none()
+        if setting:
+            setting.value = "1" if enabled else "0"
+        else:
+            session.add(AppSettings(key="vpn_notify_global", value="1" if enabled else "0"))
+        await session.commit()
+    return {"ok": True, "enabled": enabled}
 
 
 # ── Promo Codes ───────────────────────────────────────────────
@@ -1423,3 +1487,58 @@ async def activate_promo_code(telegram_id: int, code: str) -> dict:
         await session.commit()
     await add_user_log(user.id, telegram_id, "promo_activate", f"Активирован промокод «{pc.name}» (+{int(pc.amount)} кликов)")
     return {"ok": True, "amount": pc.amount, "name": pc.name, "new_balance": user.balance}
+
+
+async def get_or_create_api_key(telegram_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        ak_res = await session.execute(select(ApiKey).where(ApiKey.user_id == user.id))
+        ak = ak_res.scalar_one_or_none()
+        if not ak:
+            ak = ApiKey(user_id=user.id, key=secrets.token_hex(32))
+            session.add(ak)
+            await session.commit()
+        return {"ok": True, "key": ak.key, "created_at": ak.created_at.isoformat(), "last_used_at": ak.last_used_at.isoformat() if ak.last_used_at else None}
+
+
+async def regenerate_api_key(telegram_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        await session.execute(delete(ApiKey).where(ApiKey.user_id == user.id))
+        new_key = secrets.token_hex(32)
+        session.add(ApiKey(user_id=user.id, key=new_key))
+        await session.commit()
+        return {"ok": True, "key": new_key}
+
+
+async def get_user_by_api_key(key: str) -> dict | None:
+    async with async_session() as session:
+        ak_res = await session.execute(select(ApiKey).where(ApiKey.key == key))
+        ak = ak_res.scalar_one_or_none()
+        if not ak:
+            return None
+        ak.last_used_at = datetime.utcnow()
+        user_res = await session.execute(select(User).where(User.id == ak.user_id))
+        user = user_res.scalar_one_or_none()
+        await session.commit()
+        if not user:
+            return None
+        return {
+            "telegram_id": user.telegram_id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "balance": user.balance,
+            "total_clicks": user.total_clicks,
+            "clicks_per_click": user.clicks_per_click,
+            "auto_clicks_per_second": user.auto_clicks_per_second,
+            "is_premium": user.is_premium,
+            "is_admin": user.is_admin,
+            "login_streak": user.login_streak,
+            "created_at": user.created_at.isoformat(),
+        }

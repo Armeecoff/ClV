@@ -3,7 +3,8 @@ import logging
 from aiogram import Bot
 from database.db import (
     get_users_vpn_expiring, get_users_premium_expiring,
-    get_unsent_vpn_configs, get_users_with_vpn_notify, mark_vpn_notified
+    get_unsent_vpn_configs, get_users_with_vpn_notify, mark_vpn_notified,
+    get_global_vpn_notify
 )
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 async def send_new_vpn_notifications(bot: Bot):
     try:
+        if not await get_global_vpn_notify():
+            for cfg in await get_unsent_vpn_configs():
+                await mark_vpn_notified(cfg.id)
+            return
         new_configs = await get_unsent_vpn_configs()
         if not new_configs:
             return
