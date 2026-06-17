@@ -220,13 +220,13 @@ async def set_autobuy(telegram_id: int, body: AutobuySettings):
 # ── User Settings & Profile ───────────────────────────────────
 
 class UserSettingsBody(BaseModel):
-    vpn_notify: Optional[bool] = None
-    offline_income: Optional[bool] = None
+    vpn_notify_enabled: Optional[bool] = None
+    offline_income_enabled: Optional[bool] = None
 
 
 @app.post("/api/user/settings/{telegram_id}")
 async def update_settings(telegram_id: int, body: UserSettingsBody):
-    return await save_user_settings(telegram_id, body.vpn_notify, body.offline_income)
+    return await save_user_settings(telegram_id, body.vpn_notify_enabled, body.offline_income_enabled)
 
 
 class ProfileUpdateBody(BaseModel):

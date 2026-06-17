@@ -116,6 +116,7 @@ async def get_user_by_telegram_id(telegram_id: int) -> User | None:
 
 
 async def do_click(telegram_id: int) -> dict:
+    click_mult = await get_click_multiplier()
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -124,6 +125,7 @@ async def do_click(telegram_id: int) -> dict:
         bonus = user.clicks_per_click
         if user.is_premium:
             bonus = max(int(bonus * 1.1), bonus + 1)
+        bonus = int(bonus * click_mult)
         user.balance += bonus
         user.total_clicks += 1
         if user.balance > user.max_balance:
@@ -138,6 +140,7 @@ async def do_click(telegram_id: int) -> dict:
 
 
 async def sync_clicks(telegram_id: int, count: int) -> dict:
+    click_mult = await get_click_multiplier()
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -146,6 +149,7 @@ async def sync_clicks(telegram_id: int, count: int) -> dict:
         bonus = user.clicks_per_click
         if user.is_premium:
             bonus = max(int(bonus * 1.1), bonus + 1)
+        bonus = int(bonus * click_mult)
         earned = bonus * count
         user.balance += earned
         user.total_clicks += count
@@ -155,7 +159,14 @@ async def sync_clicks(telegram_id: int, count: int) -> dict:
         return {"balance": user.balance, "total_clicks": user.total_clicks, "earned": earned}
 
 
+async def get_auto_multiplier() -> float:
+    promos = await get_active_promotions()
+    mults = [p.value for p in promos if p.promo_type == "auto_mult"]
+    return max(mults) if mults else 1.0
+
+
 async def sync_autoclicks(telegram_id: int, amount: float) -> dict:
+    auto_mult = await get_auto_multiplier()
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -163,6 +174,7 @@ async def sync_autoclicks(telegram_id: int, amount: float) -> dict:
             return {"balance": 0}
         if user.is_premium:
             amount *= 1.5
+        amount *= auto_mult
         user.balance += amount
         if user.balance > user.max_balance:
             user.max_balance = user.balance
@@ -293,7 +305,7 @@ async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
         if int(user.balance) < price:
             return {"ok": False, "error": f"Нужно {price} кликов"}
 
-        user.balance -= price
+        user.balance = int(user.balance) - price
         now = datetime.utcnow()
         if user.is_premium and user.premium_until and user.premium_until > now:
             user.premium_until = user.premium_until + timedelta(days=days)
@@ -411,14 +423,17 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
             return {"ok": False, "error": "VPN конфиг не найден или недоступен"}
         if vpn.is_premium_only and not user.is_premium:
             return {"ok": False, "error": "Этот VPN только для Premium пользователей"}
-        effective_price = vpn.price_clicks * (0.9 if user.is_premium else 1.0)
+        vpn_disc = await get_vpn_promo_discount()
+        discount = max(vpn_disc / 100.0, 0.1 if user.is_premium else 0.0)
+        discount = min(discount, 0.9)
+        effective_price = round(vpn.price_clicks * (1.0 - discount))
         if user.balance < effective_price:
             return {"ok": False, "error": f"Нужно {int(effective_price)} кликов"}
 
         user.balance -= effective_price
         vpn.quantity_left -= 1
         expires_at = now + timedelta(days=vpn.duration_days)
-        purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=vpn.price_clicks, expires_at=expires_at)
+        purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price, expires_at=expires_at)
         session.add(purchase)
         await session.commit()
         res = {"ok": True, "config_data": vpn.config_data, "expires_at": expires_at.isoformat(), "new_balance": user.balance}

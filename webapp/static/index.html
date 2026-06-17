@@ -903,6 +903,7 @@ select.form-input { cursor:pointer; }
         <button class="btn btn-outline btn-sm" onclick="setRouletteBet(1000)">1к</button>
         <button class="btn btn-outline btn-sm" onclick="setRouletteBet(5000)">5к</button>
         <button class="btn btn-outline btn-sm" onclick="setRouletteHalf()">50%</button>
+        <button class="btn btn-outline btn-sm" onclick="setRouletteAll()">100%</button>
       </div>
       <input class="form-input" type="number" id="roulette-bet" placeholder="100" min="100">
     </div>
@@ -1223,13 +1224,24 @@ async function loadVPN() {
   const c = document.getElementById('vpn-list');
   c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const configs = await fetch('/api/vpn').then(r=>r.json());
+    const [configs, promos] = await Promise.all([
+      fetch('/api/vpn').then(r=>r.json()),
+      fetch('/api/promotions').then(r=>r.json()).catch(()=>[])
+    ]);
+    const vpnDiscPromos = promos.filter(p => p.promo_type === 'vpn_disc');
+    S.activeVpnDisc = vpnDiscPromos.length ? Math.max(...vpnDiscPromos.map(p=>p.value)) : 0;
     if (!configs.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>VPN конфигов пока нет</div>'; return; }
     c.innerHTML = configs.map(cf => {
-      const until = cf.available_until ? new Date(cf.available_until).toLocaleDateString('ru') : 'Бессрочно';
+      let untilLabel = 'Бессрочно';
+      if (cf.available_until) {
+        const d = new Date(cf.available_until);
+        untilLabel = d.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      }
       const premBadge = cf.is_premium_only ? '<span class="tag tag-premium">⭐ Premium</span>' : '';
-      const effectivePrice = cf.is_premium_only ? cf.price_clicks : (S.isPremium ? Math.floor(cf.price_clicks * 0.9) : cf.price_clicks);
-      const discountNote = S.isPremium && !cf.is_premium_only ? `<span class="tag tag-green" style="font-size:10px">−10% Premium</span>` : '';
+      const vpnDisc = S.activeVpnDisc || 0;
+      const discPct = cf.is_premium_only ? 0 : Math.max(vpnDisc, S.isPremium ? 10 : 0);
+      const effectivePrice = Math.round(cf.price_clicks * (1 - discPct / 100));
+      const discountNote = discPct > 0 ? `<span class="tag tag-green" style="font-size:10px">−${discPct}% скидка</span>` : '';
       return `<div class="card ${cf.is_premium_only && !S.isPremium ? 'opacity-60' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
           <div class="card-title">🔐 ${cf.name}</div>
@@ -1238,7 +1250,7 @@ async function loadVPN() {
         <div class="card-desc">${cf.description||''}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
           <span class="tag tag-blue">⏳ ${cf.duration_days}д.</span>
-          <span class="tag tag-yellow">📅 ${until}</span>
+          <span class="tag tag-yellow">📅 до ${untilLabel}</span>
           ${discountNote}
         </div>
         <div class="card-row">
@@ -1254,16 +1266,25 @@ let _curVpn = null;
 function openVpnModal(vpn) {
   _curVpn = vpn;
   document.getElementById('modal-vpn-title').textContent = `🔐 ${vpn.name}`;
-  const until = vpn.available_until ? new Date(vpn.available_until).toLocaleDateString('ru') : 'Бессрочно';
+  let untilLabel = 'Бессрочно';
+  if (vpn.available_until) {
+    const d = new Date(vpn.available_until);
+    untilLabel = d.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }
+  const vpnDisc = S.activeVpnDisc || 0;
+  const discPct = vpn.is_premium_only ? 0 : Math.max(vpnDisc, S.isPremium ? 10 : 0);
+  const effectivePrice = Math.round(vpn.price_clicks * (1 - discPct / 100));
+  const discNote = discPct > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">🏷 Скидка −${discPct}% (${Math.floor(vpn.price_clicks).toLocaleString('ru')} → ${effectivePrice.toLocaleString('ru')})</div>` : '';
   document.getElementById('modal-vpn-body').innerHTML = `
     <div style="color:var(--text2);font-size:12px;margin-bottom:10px">${vpn.description||''}</div>
-    <div class="stat-grid" style="margin:0 0 10px">
-      <div class="stat-card"><div class="stat-val" style="font-size:16px">💰${Math.floor(vpn.price_clicks).toLocaleString('ru')}</div><div class="stat-lbl">кликов</div></div>
+    <div class="stat-grid" style="margin:0 0 6px">
+      <div class="stat-card"><div class="stat-val" style="font-size:16px">💰${effectivePrice.toLocaleString('ru')}</div><div class="stat-lbl">кликов</div></div>
       <div class="stat-card"><div class="stat-val" style="font-size:16px">⏳${vpn.duration_days}</div><div class="stat-lbl">дней</div></div>
       <div class="stat-card"><div class="stat-val" style="font-size:16px">${vpn.quantity_left}</div><div class="stat-lbl">в наличии</div></div>
-      <div class="stat-card"><div class="stat-val" style="font-size:14px">📅</div><div class="stat-lbl">${until}</div></div>
+      <div class="stat-card"><div class="stat-val" style="font-size:14px">📅</div><div class="stat-lbl">до ${untilLabel}</div></div>
     </div>
-    <div style="font-size:12px;color:var(--text2)">Твой баланс: <b style="color:var(--yellow)">${Math.floor(S.balance).toLocaleString('ru')}</b></div>`;
+    ${discNote}
+    <div style="font-size:12px;color:var(--text2);margin-top:8px">Твой баланс: <b style="color:var(--yellow)">${Math.floor(S.balance).toLocaleString('ru')}</b></div>`;
   document.getElementById('modal-vpn-buy-btn').onclick = () => buyVPN(vpn.id);
   openModal('modal-vpn');
 }
@@ -1291,8 +1312,8 @@ async function loadProfile() {
       const expired = p.expires_at && new Date(p.expires_at) < new Date();
       let expiryLabel = '—';
       if (p.expires_at) {
-        const daysLeft = Math.ceil((new Date(p.expires_at) - new Date()) / 86400000);
-        expiryLabel = expired ? 'Истёк' : `${daysLeft} дн. осталось`;
+        const exDate = new Date(p.expires_at).toLocaleDateString('ru', {day:'2-digit',month:'2-digit',year:'numeric'});
+        expiryLabel = `до ${exDate}`;
       }
       return `<div class="purchase-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -2424,7 +2445,7 @@ function startCrystals() {
 
 // ══ SHOP TABS ══
 function switchShopTab(tab) {
-  ['upgrades','items','promos'].forEach(t => {
+  ['upgrades','items','avatars','promos'].forEach(t => {
     document.getElementById(`shop-tab-${t}`).style.display = t===tab?'block':'none';
   });
   document.querySelectorAll('.shop-tab').forEach(b => b.classList.remove('active'));
@@ -3120,21 +3141,21 @@ function openRouletteModal() {
 }
 
 function setRouletteBet(amount) {
-  const maxBet = Math.min(Math.floor(S.balance * 0.5), 500000);
-  document.getElementById('roulette-bet').value = Math.min(amount, maxBet);
+  document.getElementById('roulette-bet').value = Math.min(amount, Math.floor(S.balance));
 }
 
 function setRouletteHalf() {
-  const half = Math.floor(S.balance * 0.5);
-  document.getElementById('roulette-bet').value = Math.min(half, 500000);
+  document.getElementById('roulette-bet').value = Math.floor(S.balance * 0.5);
+}
+
+function setRouletteAll() {
+  document.getElementById('roulette-bet').value = Math.floor(S.balance);
 }
 
 async function spinRoulette() {
   if (!S.user) return;
   const bet = parseInt(document.getElementById('roulette-bet').value);
   if (!bet || bet < 100) { showToast('❌ Минимальная ставка 100 кликов','error'); return; }
-  const maxBet = Math.min(Math.floor(S.balance * 0.5), 500000);
-  if (bet > maxBet) { showToast(`❌ Максимальная ставка ${maxBet.toLocaleString('ru')}`, 'error'); return; }
   if (bet > S.balance) { showToast('❌ Недостаточно кликов','error'); return; }
   const btn = document.getElementById('roulette-spin-btn');
   btn.disabled = true;
@@ -3209,8 +3230,9 @@ async function loadAvatars() {
   if (!S.user) return;
   const ca = document.getElementById('avatars-list');
   const cf = document.getElementById('frames-list');
+  if (!ca) return;
   ca.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
-  cf.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  if (cf) cf.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
     const list = await fetch(`/api/avatars/${S.user.telegram_id}`).then(r=>r.json());
     const avatars = list.filter(a => a.item_type === 'avatar');
