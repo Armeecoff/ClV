@@ -966,6 +966,7 @@ if (tg) { tg.ready(); tg.expand(); }
 // ══ STATE ══
 const S = {
   user: null, balance: 0, totalClicks: 0, cpc: 1, acps: 0,
+  clickMult: 1,
   page: 'clicker', isPremium: false,
   theme: localStorage.getItem('theme') || 'dark',
   color: localStorage.getItem('color') || 'purple',
@@ -1000,7 +1001,11 @@ async function init() {
     S.user = data; S.balance = data.balance; S.totalClicks = data.total_clicks;
     S.cpc = data.clicks_per_click; S.acps = data.auto_clicks_per_second || 0;
     S.isPremium = data.is_premium;
-    updateBalanceUI();
+    fetch('/api/promotions').then(r=>r.json()).then(promos => {
+      const clickMults = promos.filter(p => p.promo_type === 'click_mult').map(p => p.value);
+      S.clickMult = clickMults.length ? Math.max(...clickMults) : 1;
+      updateBalanceUI();
+    }).catch(() => updateBalanceUI());
     if (data.is_admin) document.getElementById('nav-admin').style.display = 'flex';
     document.getElementById('profile-name').innerHTML = (firstName||'Пользователь') + (S.isPremium ? '<span class="crown">👑</span>' : '');
     document.getElementById('profile-id').textContent = `ID: ${tgId}`;
@@ -1048,6 +1053,13 @@ async function init() {
   } catch(e) { showToast('Ошибка загрузки', 'error'); }
 }
 
+function getEffectiveCpc() {
+  let cpc = S.cpc;
+  if (S.isPremium) cpc = Math.max(Math.round(cpc * 1.1), cpc + 1);
+  cpc = Math.round(cpc * S.clickMult);
+  return cpc;
+}
+
 function updateBalanceUI() {
   const b = Math.floor(S.balance);
   const bs = b.toLocaleString('ru');
@@ -1056,9 +1068,10 @@ function updateBalanceUI() {
   document.getElementById('vpn-balance').textContent = bs;
   document.getElementById('stat-balance').textContent = bs;
   document.getElementById('stat-clicks').textContent = S.totalClicks.toLocaleString('ru');
-  document.getElementById('stat-cpc').textContent = S.isPremium ? Math.max(Math.round(S.cpc*1.1), S.cpc+1) : S.cpc;
+  const effCpc = getEffectiveCpc();
+  document.getElementById('stat-cpc').textContent = effCpc;
   document.getElementById('stat-autoclk').textContent = S.acps.toFixed(1);
-  const cpcLabel = S.isPremium ? `+${Math.max(Math.round(S.cpc*1.1), S.cpc+1)}/клик ⭐` : `+${S.cpc}/клик`;
+  const cpcLabel = S.isPremium ? `+${effCpc}/клик ⭐` : (S.clickMult > 1 ? `+${effCpc}/клик 🎉` : `+${effCpc}/клик`);
   document.getElementById('cpc-display').textContent = cpcLabel;
   document.getElementById('shop-cpc').textContent = cpcLabel;
   document.getElementById('click-total-label').textContent = `Всего кликов: ${S.totalClicks.toLocaleString('ru')}`;
@@ -1100,10 +1113,11 @@ document.getElementById('click-btn').addEventListener('click', function(e) {
   _clickTimes = _clickTimes.filter(t => now - t < 1000);
   if (_clickTimes.length >= 6) return;
   _clickTimes.push(now);
-  S.balance += S.cpc; S.totalClicks += 1;
+  const eff = getEffectiveCpc();
+  S.balance += eff; S.totalClicks += 1;
   pendingClicks++;
   updateBalanceUI();
-  spawnFloat(e.clientX, e.clientY);
+  spawnFloat(e.clientX, e.clientY, eff);
   spawnClickEffect(e.clientX, e.clientY);
   scheduleFlush();
 });
@@ -1117,10 +1131,17 @@ async function flushClicks() {
   if (!S.user || pendingClicks === 0) return;
   const count = pendingClicks; pendingClicks = 0;
   try {
-    await fetch(`/api/click/${S.user.telegram_id}`, {
+    const resp = await fetch(`/api/click/${S.user.telegram_id}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({count})
     });
+    const data = await resp.json();
+    if (data && data.balance !== undefined) {
+      S.balance = data.balance;
+      S.totalClicks = data.total_clicks;
+      if (data.clicks_per_click !== undefined) S.cpc = data.clicks_per_click;
+      updateBalanceUI();
+    }
   } catch(e) {}
 }
 
@@ -1146,10 +1167,10 @@ function startAutoClick() {
   }, 100);
 }
 
-function spawnFloat(x, y) {
+function spawnFloat(x, y, cpc) {
   const el = document.createElement('div');
   el.className = 'float-text';
-  el.textContent = `+${S.cpc}`;
+  el.textContent = `+${cpc !== undefined ? cpc : getEffectiveCpc()}`;
   el.style.left = (x - 20) + 'px'; el.style.top = (y - 20) + 'px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 850);

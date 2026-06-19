@@ -124,8 +124,8 @@ async def do_click(telegram_id: int) -> dict:
             return {"balance": 0, "total_clicks": 0}
         bonus = user.clicks_per_click
         if user.is_premium:
-            bonus = max(int(bonus * 1.1), bonus + 1)
-        bonus = int(bonus * click_mult)
+            bonus = max(round(bonus * 1.1), bonus + 1)
+        bonus = round(bonus * click_mult)
         user.balance += bonus
         user.total_clicks += 1
         if user.balance > user.max_balance:
@@ -148,15 +148,15 @@ async def sync_clicks(telegram_id: int, count: int) -> dict:
             return {"balance": 0, "total_clicks": 0}
         bonus = user.clicks_per_click
         if user.is_premium:
-            bonus = max(int(bonus * 1.1), bonus + 1)
-        bonus = int(bonus * click_mult)
+            bonus = max(round(bonus * 1.1), bonus + 1)
+        bonus = round(bonus * click_mult)
         earned = bonus * count
         user.balance += earned
         user.total_clicks += count
         if user.balance > user.max_balance:
             user.max_balance = user.balance
         await session.commit()
-        return {"balance": user.balance, "total_clicks": user.total_clicks, "earned": earned}
+        return {"balance": user.balance, "total_clicks": user.total_clicks, "earned": earned, "clicks_per_click": user.clicks_per_click}
 
 
 async def get_auto_multiplier() -> float:
@@ -398,6 +398,7 @@ async def delete_vpn_config(vpn_id: int) -> dict:
         vpn = result.scalar_one_or_none()
         if not vpn:
             return {"ok": False, "error": "Не найден"}
+        await session.execute(delete(VPNPurchase).where(VPNPurchase.vpn_config_id == vpn_id))
         await session.delete(vpn)
         await session.commit()
         return {"ok": True}
@@ -1046,7 +1047,8 @@ async def get_users_vpn_expiring(days_ahead: int = 3) -> list:
             .join(VPNConfig, VPNPurchase.vpn_config_id == VPNConfig.id)
             .where(
                 VPNPurchase.expires_at >= window_start,
-                VPNPurchase.expires_at <= window_end
+                VPNPurchase.expires_at <= window_end,
+                User.vpn_notify_enabled == True
             )
         )
         rows = result.all()
@@ -1125,7 +1127,8 @@ async def save_user_settings(telegram_id: int, vpn_notify: bool = None, offline_
         if vpn_notify is not None:
             user.vpn_notify_enabled = vpn_notify
         if offline_income is not None:
-            if not user.is_premium:
+            if offline_income and not user.is_premium:
+                await session.commit()
                 return {"ok": False, "error": "Требуется Premium"}
             user.offline_income_enabled = offline_income
         await session.commit()
