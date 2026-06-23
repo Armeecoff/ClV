@@ -1,8 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import select, delete, func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 from config import DATABASE_URL, ADMIN_IDS
+
+MSK = timezone(timedelta(hours=3))
+
+def now_msk() -> datetime:
+    return datetime.now(MSK).replace(tzinfo=None)
+
 from database.models import (
     Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase,
     Promotion, UserActivityLog, Achievement, UserAchievement, AppSettings,
@@ -30,6 +36,7 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_keywords TEXT DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_min_price FLOAT DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_max_price FLOAT DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_max_count INTEGER DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_days_count INTEGER DEFAULT 0 NOT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER DEFAULT 0 NOT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TIMESTAMP DEFAULT NULL",
@@ -76,7 +83,7 @@ async def get_or_create_user(telegram_id: int, username: str = None, first_name:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
-        now = datetime.utcnow()
+        now = now_msk()
         today = now.date()
         if not user:
             user = User(
@@ -253,7 +260,7 @@ async def get_premium_prices() -> dict:
             skey = f"premium_price_{key}"
             res = await session.execute(select(AppSettings).where(AppSettings.key == skey))
             if not res.scalar_one_or_none():
-                session.add(AppSettings(key=skey, value=str(default), updated_at=datetime.utcnow()))
+                session.add(AppSettings(key=skey, value=str(default), updated_at=now_msk()))
         await session.commit()
         result = await session.execute(
             select(AppSettings).where(AppSettings.key.like("premium_price_%"))
@@ -282,9 +289,9 @@ async def set_premium_price(admin_telegram_id: int, period: str, price: int) -> 
         row = res.scalar_one_or_none()
         if row:
             row.value = str(int(price))
-            row.updated_at = datetime.utcnow()
+            row.updated_at = now_msk()
         else:
-            session.add(AppSettings(key=skey, value=str(int(price)), updated_at=datetime.utcnow()))
+            session.add(AppSettings(key=skey, value=str(int(price)), updated_at=now_msk()))
         await session.commit()
     return {"ok": True}
 
@@ -306,7 +313,7 @@ async def buy_premium_subscription(telegram_id: int, period: str) -> dict:
             return {"ok": False, "error": f"Нужно {price} кликов"}
 
         user.balance = int(user.balance) - price
-        now = datetime.utcnow()
+        now = now_msk()
         if user.is_premium and user.premium_until and user.premium_until > now:
             user.premium_until = user.premium_until + timedelta(days=days)
         else:
@@ -346,7 +353,7 @@ async def seed_upgrades():
 
 async def get_vpn_configs() -> list[VPNConfig]:
     async with async_session() as session:
-        now = datetime.utcnow()
+        now = now_msk()
         result = await session.execute(
             select(VPNConfig).where(
                 VPNConfig.is_active == True,
@@ -363,8 +370,27 @@ async def get_all_vpn_configs() -> list[VPNConfig]:
         return result.scalars().all()
 
 
+async def auto_disable_expired_vpns():
+    now = now_msk()
+    async with async_session() as session:
+        result = await session.execute(
+            select(VPNConfig).where(
+                VPNConfig.is_active == True,
+                VPNConfig.available_until != None,
+                VPNConfig.available_until < now
+            )
+        )
+        vpns = result.scalars().all()
+        for vpn in vpns:
+            vpn.is_active = False
+        if vpns:
+            await session.commit()
+
+
 async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False) -> VPNConfig:
     async with async_session() as session:
+        if available_until is None:
+            available_until = now_msk() + timedelta(days=duration_days)
         vpn = VPNConfig(
             name=name, description=description, config_data=config_data,
             price_clicks=price_clicks, duration_days=duration_days,
@@ -411,7 +437,7 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         if not user:
             return {"ok": False, "error": "Пользователь не найден"}
 
-        now = datetime.utcnow()
+        now = now_msk()
         vpn_res = await session.execute(
             select(VPNConfig).where(
                 VPNConfig.id == vpn_id, VPNConfig.is_active == True,
@@ -425,7 +451,10 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         if vpn.is_premium_only and not user.is_premium:
             return {"ok": False, "error": "Этот VPN только для Premium пользователей"}
         vpn_disc = await get_vpn_promo_discount()
-        discount = max(vpn_disc / 100.0, 0.1 if user.is_premium else 0.0)
+        if vpn.is_premium_only:
+            discount = 0.1 if user.is_premium else 0.0
+        else:
+            discount = max(vpn_disc / 100.0, 0.1 if user.is_premium else 0.0)
         discount = min(discount, 0.9)
         effective_price = round(vpn.price_clicks * (1.0 - discount))
         if user.balance < effective_price:
@@ -433,7 +462,7 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
 
         user.balance -= effective_price
         vpn.quantity_left -= 1
-        expires_at = now + timedelta(days=vpn.duration_days)
+        expires_at = vpn.available_until if vpn.available_until else now + timedelta(days=vpn.duration_days)
         purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price, expires_at=expires_at)
         session.add(purchase)
         await session.commit()
@@ -668,7 +697,7 @@ async def admin_delete_upgrade(upgrade_id: int) -> dict:
 
 async def get_active_promotions() -> list:
     async with async_session() as session:
-        now = datetime.utcnow()
+        now = now_msk()
         result = await session.execute(
             select(Promotion).where(
                 Promotion.is_active == True,
@@ -853,7 +882,7 @@ async def check_and_unlock_achievements(telegram_id: int, client_state: dict) ->
         )
         owned_non_prem = owned_np_res.scalar() or 0
 
-        now = datetime.utcnow()
+        now = now_msk()
         promo_res = await session.execute(
             select(func.count(Promotion.id)).where(
                 Promotion.is_active == True, Promotion.end_at > now
@@ -969,11 +998,12 @@ async def get_autobuy_settings(telegram_id: int) -> dict:
             "enabled": user.autobuy_enabled,
             "keywords": user.autobuy_keywords or "",
             "min_price": user.autobuy_min_price,
-            "max_price": user.autobuy_max_price
+            "max_price": user.autobuy_max_price,
+            "max_count": user.autobuy_max_count,
         }
 
 
-async def save_autobuy_settings(telegram_id: int, enabled: bool, keywords: str, min_price, max_price) -> dict:
+async def save_autobuy_settings(telegram_id: int, enabled: bool, keywords: str, min_price, max_price, max_count=None) -> dict:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -985,6 +1015,7 @@ async def save_autobuy_settings(telegram_id: int, enabled: bool, keywords: str, 
         user.autobuy_keywords = keywords or None
         user.autobuy_min_price = float(min_price) if min_price is not None else None
         user.autobuy_max_price = float(max_price) if max_price is not None else None
+        user.autobuy_max_count = int(max_count) if max_count is not None else None
         await session.commit()
         return {"ok": True}
 
@@ -1009,6 +1040,14 @@ async def process_autobuy_for_vpn(vpn_id: int):
         if user.autobuy_keywords:
             keywords = [k.strip().lower() for k in user.autobuy_keywords.split(',') if k.strip()]
             if keywords and not any(k in vpn.name.lower() for k in keywords):
+                continue
+        if user.autobuy_max_count is not None:
+            async with async_session() as session:
+                count_res = await session.execute(
+                    select(func.count(VPNPurchase.id)).where(VPNPurchase.user_id == user.id)
+                )
+                total_bought = count_res.scalar() or 0
+            if total_bought >= user.autobuy_max_count:
                 continue
         await buy_vpn(user.telegram_id, vpn_id)
 
@@ -1037,9 +1076,10 @@ async def get_user_extended_history(telegram_id: int, limit: int = 100) -> list:
 # ── Notification helpers ──────────────────────────────────────
 
 async def get_users_vpn_expiring(days_ahead: int = 3) -> list:
-    now = datetime.utcnow()
+    now = now_msk()
     window_start = now + timedelta(days=days_ahead - 0.5)
     window_end = now + timedelta(days=days_ahead + 0.5)
+    min_purchase_age = now - timedelta(days=1)
     async with async_session() as session:
         result = await session.execute(
             select(VPNPurchase, User, VPNConfig)
@@ -1048,6 +1088,7 @@ async def get_users_vpn_expiring(days_ahead: int = 3) -> list:
             .where(
                 VPNPurchase.expires_at >= window_start,
                 VPNPurchase.expires_at <= window_end,
+                VPNPurchase.purchased_at <= min_purchase_age,
                 User.vpn_notify_enabled == True
             )
         )
@@ -1064,7 +1105,7 @@ async def get_users_vpn_expiring(days_ahead: int = 3) -> list:
 
 
 async def get_users_premium_expiring(hours_ahead: int = 24) -> list:
-    now = datetime.utcnow()
+    now = now_msk()
     window_end = now + timedelta(hours=hours_ahead)
     async with async_session() as session:
         result = await session.execute(
@@ -1161,7 +1202,7 @@ async def claim_offline_income(telegram_id: int) -> dict:
             return {"ok": True, "earned": 0}
         if user.auto_clicks_per_second <= 0:
             return {"ok": True, "earned": 0}
-        now = datetime.utcnow()
+        now = now_msk()
         last = user.last_offline_check or user.created_at or now
         offline_secs = min((now - last).total_seconds(), 12 * 3600)
         if offline_secs < 60:
@@ -1201,9 +1242,6 @@ async def spin_roulette(telegram_id: int, bet: int) -> dict:
             return {"ok": False, "error": "Минимальная ставка: 100 кликов"}
         if bet > user.balance:
             return {"ok": False, "error": "Недостаточно кликов"}
-        max_bet = min(int(user.balance * 0.5), 500000)
-        if bet > max_bet:
-            return {"ok": False, "error": f"Максимальная ставка: {max_bet}"}
 
         weights = [s["weight"] for s in ROULETTE_SEGMENTS]
         segment = random.choices(ROULETTE_SEGMENTS, weights=weights, k=1)[0]
@@ -1483,7 +1521,7 @@ async def activate_promo_code(telegram_id: int, code: str) -> dict:
             return {"ok": False, "error": "Промокод не найден"}
         if not pc.is_active:
             return {"ok": False, "error": "Промокод деактивирован"}
-        if pc.expires_at and pc.expires_at < datetime.utcnow():
+        if pc.expires_at and pc.expires_at < now_msk():
             return {"ok": False, "error": "Промокод истёк"}
         if pc.activations_used >= pc.max_activations:
             return {"ok": False, "error": "Промокод исчерпан"}
@@ -1541,7 +1579,7 @@ async def get_user_by_api_key(key: str) -> dict | None:
         ak = ak_res.scalar_one_or_none()
         if not ak:
             return None
-        ak.last_used_at = datetime.utcnow()
+        ak.last_used_at = now_msk()
         user_res = await session.execute(select(User).where(User.id == ak.user_id))
         user = user_res.scalar_one_or_none()
         await session.commit()

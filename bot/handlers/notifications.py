@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot
 from database.db import (
-    get_users_vpn_expiring, get_users_premium_expiring,
+    get_users_vpn_expiring, get_users_premium_expiring, auto_disable_expired_vpns,
 )
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,7 @@ async def send_notifications(bot: Bot):
     tick = 0
     while True:
         try:
+            await auto_disable_expired_vpns()
             if tick % 6 == 0:
                 vpn_users = await get_users_vpn_expiring(days_ahead=3)
                 for item in vpn_users:

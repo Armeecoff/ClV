@@ -609,6 +609,7 @@ select.form-input { cursor:pointer; }
       <div class="form-group"><label class="form-label">Мин. цена</label><input class="form-input" type="number" id="autobuy-min" placeholder="0"></div>
       <div class="form-group"><label class="form-label">Макс. цена</label><input class="form-input" type="number" id="autobuy-max" placeholder="любая"></div>
     </div>
+    <div class="form-group" style="margin-top:4px"><label class="form-label">Кол-во (макс. всего покупок, пусто = без лимита)</label><input class="form-input" type="number" id="autobuy-count" placeholder="без лимита" min="1"></div>
     <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="saveAutobuySettings()">💾 Сохранить настройки</button>
   </div>
 </div>
@@ -792,6 +793,7 @@ select.form-input { cursor:pointer; }
     <div class="form-group"><label class="form-label">Цена (кликов) *</label><input class="form-input" type="number" id="vpn-add-price" placeholder="1000"></div>
     <div class="form-group"><label class="form-label">Срок (дней) *</label><input class="form-input" type="number" id="vpn-add-duration" placeholder="30"></div>
     <div class="form-group"><label class="form-label">Количество *</label><input class="form-input" type="number" id="vpn-add-qty" placeholder="10"></div>
+    <div class="form-group" id="vpn-qty-left-group" style="display:none"><label class="form-label">Остаток (текущий)</label><input class="form-input" type="number" id="vpn-add-qty-left" placeholder="0"></div>
     <div class="form-group"><label class="form-label">До даты (пусто = бессрочно)</label><input class="form-input" type="date" id="vpn-add-until"></div>
     <div class="form-group" style="display:flex;align-items:center;gap:10px">
       <input type="checkbox" id="vpn-premium-only" style="width:16px;height:16px;cursor:pointer">
@@ -890,7 +892,7 @@ select.form-input { cursor:pointer; }
     <div class="modal-handle"></div>
     <div class="modal-title">🎰 Рулетка</div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:12px">Испытай удачу! Поставь клики и умножь их.</div>
-    <div id="roulette-wheel-display" style="text-align:center;font-size:48px;margin:10px 0;min-height:64px;display:flex;align-items:center;justify-content:center">🎰</div>
+    <div id="roulette-wheel-display" style="text-align:center;font-size:72px;margin:10px 0;min-height:80px;display:flex;align-items:center;justify-content:center">🎰</div>
     <div id="roulette-result-text" style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px;min-height:20px"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-size:11px;color:var(--text2)">Сегменты: <b style="color:#e53e3e">💀×0 (20%)</b> · <b style="color:#ed8936">😢×0.5 (24%)</b> · <b style="color:#c05621">🤏×0.75 (25%)</b> · <b style="color:#718096">😐×1 (15%)</b> · <b style="color:#38a169">😊×1.5 (10%)</b> · <b style="color:#3182ce">🎉×2 (5%)</b> · <b style="color:#d69e2e">🌟×5 (1%)</b></div>
@@ -1339,7 +1341,10 @@ async function loadProfile() {
       return `<div class="purchase-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="font-weight:700;margin-bottom:3px">🔐 ${p.vpn_name}</div>
-          <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--text2)" onclick="deleteVpnPurchase(${p.id})">🗑</button>
+          <div style="display:flex;gap:4px">
+            ${p.config_data ? `<button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--accent2)" onclick="copyVpnConfig(${JSON.stringify(p.config_data).replace(/'/g,'&#39;')})">📋</button>` : ''}
+            <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--text2)" onclick="deleteVpnPurchase(${p.id})">🗑</button>
+          </div>
         </div>
         <div style="font-size:11px;color:var(--text2)">Куплено: ${bought} · ${expiryLabel}</div>
         <div style="margin-top:6px;display:flex;gap:6px">
@@ -1364,6 +1369,21 @@ async function loadApiKey() {
     const r = await fetch(`/api/user/api-key/${S.user.telegram_id}`).then(r=>r.json());
     if (r.ok) document.getElementById('api-key-display').value = r.key;
   } catch(e) {}
+}
+
+async function copyVpnConfig(configData) {
+  try {
+    await navigator.clipboard.writeText(configData);
+    showToast('✅ Конфиг скопирован','success');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = configData;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ Конфиг скопирован','success');
+  }
 }
 
 async function copyApiKey() {
@@ -2859,8 +2879,9 @@ function deleteVpnTemplate(id) {
 function openAddVpnModal() {
   document.getElementById('modal-add-vpn-title').textContent = '➕ Добавить VPN';
   document.getElementById('edit-vpn-id').value = '';
-  ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-until'].forEach(id=>document.getElementById(id).value='');
+  ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-qty-left','vpn-add-until'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('vpn-premium-only').checked = false;
+  document.getElementById('vpn-qty-left-group').style.display = 'none';
   renderVpnTemplates();
   openModal('modal-add-vpn');
 }
@@ -2877,6 +2898,8 @@ async function openEditVpnModal(id) {
   document.getElementById('vpn-add-price').value = cf.price_clicks;
   document.getElementById('vpn-add-duration').value = cf.duration_days;
   document.getElementById('vpn-add-qty').value = cf.quantity;
+  document.getElementById('vpn-add-qty-left').value = cf.quantity_left ?? '';
+  document.getElementById('vpn-qty-left-group').style.display = 'block';
   document.getElementById('vpn-add-until').value = cf.available_until ? cf.available_until.slice(0,10) : '';
   document.getElementById('vpn-premium-only').checked = !!cf.is_premium_only;
   renderVpnTemplates();
@@ -2892,10 +2915,12 @@ async function submitVpnForm() {
   const dur   = parseInt(document.getElementById('vpn-add-duration').value);
   const qty   = parseInt(document.getElementById('vpn-add-qty').value);
   if (!name||!config||isNaN(price)||isNaN(dur)||isNaN(qty)) { showToast('❌ Заполни обязательные поля','error'); return; }
+  const qtyLeftRaw = document.getElementById('vpn-add-qty-left').value;
   const body = {
     admin_telegram_id: S.user.telegram_id, name,
     description: document.getElementById('vpn-add-desc').value.trim(),
     config_data: config, price_clicks: price, duration_days: dur, quantity: qty,
+    ...(editId && qtyLeftRaw !== '' ? {quantity_left: parseInt(qtyLeftRaw)} : {}),
     available_until: document.getElementById('vpn-add-until').value || null,
     is_premium_only: document.getElementById('vpn-premium-only').checked
   };
@@ -3099,6 +3124,7 @@ async function loadAutobuySettings() {
     document.getElementById('autobuy-keywords').value = d.keywords || '';
     document.getElementById('autobuy-min').value = d.min_price != null ? d.min_price : '';
     document.getElementById('autobuy-max').value = d.max_price != null ? d.max_price : '';
+    document.getElementById('autobuy-count').value = d.max_count != null ? d.max_count : '';
   } catch(e) {}
 }
 
@@ -3108,10 +3134,11 @@ async function saveAutobuySettings() {
   const keywords = document.getElementById('autobuy-keywords').value.trim();
   const minV = document.getElementById('autobuy-min').value;
   const maxV = document.getElementById('autobuy-max').value;
+  const cntV = document.getElementById('autobuy-count').value;
   try {
     const r = await fetch(`/api/user/autobuy/${S.user.telegram_id}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({enabled, keywords, min_price: minV ? parseFloat(minV) : null, max_price: maxV ? parseFloat(maxV) : null})
+      body: JSON.stringify({enabled, keywords, min_price: minV ? parseFloat(minV) : null, max_price: maxV ? parseFloat(maxV) : null, max_count: cntV ? parseInt(cntV) : null})
     }).then(r=>r.json());
     if (r.ok) showToast('✅ Настройки сохранены', 'success');
     else showToast('❌ ' + (r.error||'Ошибка'), 'error');
@@ -3153,13 +3180,6 @@ async function saveUserProfile() {
 }
 
 // ══ ROULETTE ══
-function openRouletteModal() {
-  document.getElementById('roulette-wheel-display').textContent = '🎰';
-  document.getElementById('roulette-result-text').textContent = '';
-  document.getElementById('roulette-bet').value = '';
-  document.getElementById('roulette-spin-btn').disabled = false;
-  openModal('modal-roulette');
-}
 
 function setRouletteBet(amount) {
   document.getElementById('roulette-bet').value = Math.min(amount, Math.floor(S.balance));
@@ -3173,15 +3193,23 @@ function setRouletteAll() {
   document.getElementById('roulette-bet').value = Math.floor(S.balance);
 }
 
+function openRouletteModal() {
+  document.getElementById('roulette-wheel-display').textContent = '🎰';
+  document.getElementById('roulette-result-text').textContent = '';
+  document.getElementById('roulette-bet').value = '';
+  document.getElementById('roulette-spin-btn').disabled = false;
+  openModal('modal-roulette');
+}
+
 async function spinRoulette() {
   if (!S.user) return;
   const bet = parseInt(document.getElementById('roulette-bet').value);
   if (!bet || bet < 100) { showToast('❌ Минимальная ставка 100 кликов','error'); return; }
   if (bet > S.balance) { showToast('❌ Недостаточно кликов','error'); return; }
   const btn = document.getElementById('roulette-spin-btn');
-  btn.disabled = true;
   const disp = document.getElementById('roulette-wheel-display');
   const resultText = document.getElementById('roulette-result-text');
+  btn.disabled = true;
   const symbols = ['🎰','💀','😢','😐','😊','🎉','🌟'];
   let i = 0;
   const spinAnim = setInterval(()=>{ disp.textContent = symbols[i%symbols.length]; i++; }, 80);
@@ -3208,7 +3236,6 @@ async function spinRoulette() {
         resultText.innerHTML = `<span style="color:#38a169">🎉 ×${mult} | +${delta.toLocaleString('ru')} кликов!</span>`;
       }
     } else {
-      clearInterval(spinAnim);
       disp.textContent = '❌';
       resultText.textContent = r.error || 'Ошибка';
     }

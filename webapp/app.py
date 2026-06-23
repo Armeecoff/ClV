@@ -208,12 +208,13 @@ class AutobuySettings(BaseModel):
     keywords: str = ""
     min_price: Optional[float] = None
     max_price: Optional[float] = None
+    max_count: Optional[int] = None
 
 
 @app.post("/api/user/autobuy/{telegram_id}")
 async def set_autobuy(telegram_id: int, body: AutobuySettings):
     return await save_autobuy_settings(
-        telegram_id, body.enabled, body.keywords, body.min_price, body.max_price
+        telegram_id, body.enabled, body.keywords, body.min_price, body.max_price, body.max_count
     )
 
 
@@ -412,6 +413,7 @@ class VPNEdit(BaseModel):
     price_clicks: Optional[float] = None
     duration_days: Optional[int] = None
     quantity: Optional[int] = None
+    quantity_left: Optional[int] = None
     available_until: Optional[str] = None
     is_active: Optional[bool] = None
     is_premium_only: Optional[bool] = None

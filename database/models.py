@@ -29,6 +29,7 @@ class User(Base):
     autobuy_keywords = Column(Text, nullable=True)
     autobuy_min_price = Column(Float, nullable=True)
     autobuy_max_price = Column(Float, nullable=True)
+    autobuy_max_count = Column(Integer, nullable=True)
     login_days_count = Column(Integer, default=0, nullable=False)
     login_streak = Column(Integer, default=0, nullable=False)
     last_login_date = Column(DateTime, nullable=True)
