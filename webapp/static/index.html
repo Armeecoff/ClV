@@ -1257,7 +1257,7 @@ async function loadVPN() {
     c.innerHTML = configs.map(cf => {
       let untilLabel = 'Бессрочно';
       if (cf.available_until) {
-        const d = new Date(cf.available_until);
+        const d = parseMskDate(cf.available_until);
         untilLabel = d.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
       }
       const premBadge = cf.is_premium_only ? '<span class="tag tag-premium">⭐ Premium</span>' : '';
@@ -1291,7 +1291,7 @@ function openVpnModal(vpn) {
   document.getElementById('modal-vpn-title').textContent = `🔐 ${vpn.name}`;
   let untilLabel = 'Бессрочно';
   if (vpn.available_until) {
-    const d = new Date(vpn.available_until);
+    const d = parseMskDate(vpn.available_until);
     untilLabel = d.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   }
   const vpnDisc = S.activeVpnDisc || 0;
@@ -1324,25 +1324,31 @@ async function buyVPN(id) {
 }
 
 // ══ PROFILE ══
+window._vpnConfigs = {};
+
+function parseMskDate(str) {
+  if (!str) return null;
+  return new Date(str + (str.includes('+') || str.endsWith('Z') ? '' : '+03:00'));
+}
+
 async function loadProfile() {
   if (!S.user) return;
   const c = document.getElementById('vpn-history');
   try {
     const purchases = await fetch(`/api/vpn/purchases/${S.user.telegram_id}`).then(r=>r.json());
+    window._vpnConfigs = {};
     if (!purchases.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>Покупок VPN нет</div>'; }
     else c.innerHTML = purchases.map(p => {
-      const bought  = new Date(p.purchased_at).toLocaleDateString('ru');
-      const expired = p.expires_at && new Date(p.expires_at) < new Date();
-      let expiryLabel = '—';
-      if (p.expires_at) {
-        const exDate = new Date(p.expires_at).toLocaleDateString('ru', {day:'2-digit',month:'2-digit',year:'numeric'});
-        expiryLabel = `до ${exDate}`;
-      }
+      if (p.config_data) window._vpnConfigs[p.id] = p.config_data;
+      const bought  = parseMskDate(p.purchased_at).toLocaleDateString('ru');
+      const exDate  = p.expires_at ? parseMskDate(p.expires_at) : null;
+      const expired = exDate && exDate < new Date();
+      const expiryLabel = exDate ? `до ${exDate.toLocaleDateString('ru', {day:'2-digit',month:'2-digit',year:'numeric'})}` : '—';
       return `<div class="purchase-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="font-weight:700;margin-bottom:3px">🔐 ${p.vpn_name}</div>
           <div style="display:flex;gap:4px">
-            ${p.config_data ? `<button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--accent2)" onclick="copyVpnConfig(${JSON.stringify(p.config_data).replace(/'/g,'&#39;')})">📋</button>` : ''}
+            ${p.config_data ? `<button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--accent2)" onclick="copyVpnConfigById(${p.id})">📋</button>` : ''}
             <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;color:var(--text2)" onclick="deleteVpnPurchase(${p.id})">🗑</button>
           </div>
         </div>
@@ -1352,7 +1358,7 @@ async function loadProfile() {
           <span class="tag tag-yellow">💰${Math.floor(p.price_paid)}</span>
         </div>
         ${p.config_data ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--accent2)">Показать конфиг</summary>
-        <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${p.config_data}</div></details>` : ''}
+        <div style="margin-top:6px;background:var(--bg);border-radius:8px;padding:8px;font-family:monospace;font-size:10px;word-break:break-all;color:var(--text2)">${escHtml(p.config_data)}</div></details>` : ''}
       </div>`;
     }).join('');
   } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
@@ -1360,6 +1366,27 @@ async function loadProfile() {
   if (S.isPremium) {
     document.getElementById('extended-history-section').style.display = 'block';
     loadExtendedHistory();
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function copyVpnConfigById(id) {
+  const cfg = window._vpnConfigs[id];
+  if (!cfg) { showToast('❌ Конфиг не найден','error'); return; }
+  try {
+    await navigator.clipboard.writeText(cfg);
+    showToast('✅ Конфиг скопирован','success');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = cfg;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ Конфиг скопирован','success');
   }
 }
 
@@ -1371,20 +1398,6 @@ async function loadApiKey() {
   } catch(e) {}
 }
 
-async function copyVpnConfig(configData) {
-  try {
-    await navigator.clipboard.writeText(configData);
-    showToast('✅ Конфиг скопирован','success');
-  } catch(e) {
-    const ta = document.createElement('textarea');
-    ta.value = configData;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('✅ Конфиг скопирован','success');
-  }
-}
 
 async function copyApiKey() {
   const val = document.getElementById('api-key-display').value;
@@ -1423,7 +1436,7 @@ async function loadAchievements() {
       <span style="font-size:13px;color:var(--text2)">Получено: <b style="color:var(--accent)">${unlocked}</b> / ${list.length}</span>
       <button class="btn btn-outline btn-sm" onclick="triggerAchievementCheck()">🔍 Проверить</button>
     </div>` + list.map(a => {
-      const dateStr = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('ru') : '';
+      const dateStr = a.unlocked_at ? parseMskDate(a.unlocked_at).toLocaleDateString('ru') : '';
       return `<div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
         <div class="ach-icon">${a.icon}</div>
         <div class="ach-body">
@@ -1466,7 +1479,7 @@ async function loadExtendedHistory() {
     const icons = {vpn_buy:'🔐', upgrade_buy:'⚡', roulette:'🎰', offline_income:'💤', premium_buy:'👑', register:'🎉', promo_code:'🎟', avatar_buy:'🎭'};
     c.innerHTML = filtered.length ? filtered.map(l => {
       const icon = icons[l.action_type] || '📋';
-      const dt = new Date(l.created_at).toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const dt = parseMskDate(l.created_at).toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
       return `<div class="hlog-item"><div class="hlog-icon">${icon}</div><div class="hlog-body"><div class="hlog-desc">${l.description}</div><div class="hlog-date">${dt}</div></div></div>`;
     }).join('') : '<div class="empty"><div class="empty-icon">📜</div>История пуста</div>';
   } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
@@ -2637,7 +2650,7 @@ async function loadPromos() {
       const colorClass = typeColors[p.promo_type] || 'promo-card-green';
       const label = typeLabels[p.promo_type] || '';
       const suffix = typeSuffix[p.promo_type] || '';
-      const endDate = new Date(p.end_at);
+      const endDate = parseMskDate(p.end_at);
       const msLeft = endDate - Date.now();
       const hours = Math.floor(msLeft/3600000);
       const mins  = Math.floor((msLeft%3600000)/60000);
@@ -2686,7 +2699,7 @@ async function loadAdminVPN() {
     if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">📋</div>Конфигов нет</div>'; return; }
     c.innerHTML = list.map(cf => {
       const st = cf.is_active ? '<span class="tag tag-green">Активен</span>' : '<span class="tag tag-red">Выкл.</span>';
-      const until = cf.available_until ? new Date(cf.available_until).toLocaleDateString('ru') : '∞';
+      const until = cf.available_until ? parseMskDate(cf.available_until).toLocaleDateString('ru') : '∞';
       const premBadge = cf.is_premium_only ? '<span class="tag tag-premium">⭐ Premium</span>' : '';
       return `<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -2771,7 +2784,7 @@ const LOG_ICONS = {vpn_buy:'🔐',upgrade_buy:'⚡',balance_add:'💚',balance_r
 
 function logEntryHtml(log, showWho=true) {
   const icon = LOG_ICONS[log.action_type] || '📌';
-  const dt = new Date(log.created_at);
+  const dt = parseMskDate(log.created_at);
   const time = dt.toLocaleString('ru',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
   const who = showWho ? `<div class="log-who"><span class="log-type-${log.action_type}">${icon}</span> ${log.first_name||log.username||'—'} <span style="opacity:.5;font-weight:400">· ${log.telegram_id}</span></div>` : `<div class="log-who"><span class="log-type-${log.action_type}">${icon} ${log.action_type}</span></div>`;
   return `<div class="log-entry">
@@ -3054,7 +3067,7 @@ async function loadAdminPromos() {
     const typeLabels = {click_mult:'×N к кликам', vpn_disc:'−N% VPN', auto_mult:'×N авто'};
     c.innerHTML = list.map(p => {
       const st = p.is_active ? '<span class="tag tag-green">Вкл.</span>' : '<span class="tag tag-red">Выкл.</span>';
-      const endDate = new Date(p.end_at);
+      const endDate = parseMskDate(p.end_at);
       return `<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div class="card-title">${p.icon} ${p.title}</div>${st}
@@ -3389,7 +3402,7 @@ async function loadAdminPromoCodes() {
     if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🎟</div>Промокодов нет</div>'; return; }
     c.innerHTML = list.map(pc => {
       const st = pc.is_active ? '<span class="tag tag-green">Активен</span>' : '<span class="tag tag-red">Выкл.</span>';
-      const expires = pc.expires_at ? new Date(pc.expires_at).toLocaleDateString('ru') : '∞';
+      const expires = pc.expires_at ? parseMskDate(pc.expires_at).toLocaleDateString('ru') : '∞';
       return `<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>

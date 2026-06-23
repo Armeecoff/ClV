@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Float,
     ForeignKey, Integer, String, Text
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
+
+MSK = timezone(timedelta(hours=3))
+
+def now_msk() -> datetime:
+    return datetime.now(MSK).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -40,7 +45,7 @@ class User(Base):
     last_offline_check = Column(DateTime, nullable=True)
     equipped_avatar = Column(String(20), default="👤", nullable=False)
     equipped_frame = Column(String(200), default="", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
     vpn_purchases = relationship("VPNPurchase", back_populates="user")
@@ -63,7 +68,7 @@ class ClickUpgrade(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_premium_only = Column(Boolean, default=False, nullable=False)
     icon = Column(String(10), default="⚡", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
     user_upgrades = relationship("UserUpgrade", back_populates="upgrade")
 
@@ -74,7 +79,7 @@ class UserUpgrade(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     upgrade_id = Column(Integer, ForeignKey("click_upgrades.id"), nullable=False)
-    purchased_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    purchased_at = Column(DateTime, default=now_msk, nullable=False)
 
     user = relationship("User", back_populates="upgrades")
     upgrade = relationship("ClickUpgrade", back_populates="user_upgrades")
@@ -95,7 +100,7 @@ class VPNConfig(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_premium_only = Column(Boolean, default=False, nullable=False)
     notify_sent = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
     created_by = Column(BigInteger, nullable=True)
 
     purchases = relationship("VPNPurchase", back_populates="vpn_config")
@@ -108,7 +113,7 @@ class VPNPurchase(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     vpn_config_id = Column(Integer, ForeignKey("vpn_configs.id"), nullable=False)
     price_paid = Column(Float, nullable=False)
-    purchased_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    purchased_at = Column(DateTime, default=now_msk, nullable=False)
     expires_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="vpn_purchases")
@@ -123,7 +128,7 @@ class UserActivityLog(Base):
     telegram_id = Column(BigInteger, nullable=False, index=True)
     action_type = Column(String(30), nullable=False)
     description = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
     user = relationship("User", back_populates="activity_logs")
 
@@ -139,7 +144,7 @@ class Promotion(Base):
     value = Column(Float, default=2.0, nullable=False)
     end_at = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
 
 class Achievement(Base):
@@ -152,7 +157,7 @@ class Achievement(Base):
     condition_type = Column(String(50), nullable=False)
     condition_value = Column(Text, default="0", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
     user_achievements = relationship("UserAchievement", back_populates="achievement", cascade="all, delete-orphan")
 
@@ -163,7 +168,7 @@ class UserAchievement(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     achievement_id = Column(Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False)
-    unlocked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    unlocked_at = Column(DateTime, default=now_msk, nullable=False)
 
     user = relationship("User", back_populates="achievements")
     achievement = relationship("Achievement", back_populates="user_achievements")
@@ -175,7 +180,7 @@ class AppSettings(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=now_msk, onupdate=now_msk, nullable=False)
 
 
 class Avatar(Base):
@@ -199,7 +204,7 @@ class UserAvatar(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     avatar_id = Column(Integer, ForeignKey("avatars.id", ondelete="CASCADE"), nullable=False)
-    purchased_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    purchased_at = Column(DateTime, default=now_msk, nullable=False)
 
     user = relationship("User", back_populates="owned_avatars")
     avatar = relationship("Avatar", back_populates="owners")
@@ -217,7 +222,7 @@ class PromoCode(Base):
     expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_by = Column(BigInteger, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
 
     activations = relationship("PromoCodeActivation", back_populates="promo_code", cascade="all, delete-orphan")
 
@@ -228,7 +233,7 @@ class PromoCodeActivation(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     promo_code_id = Column(Integer, ForeignKey("promo_codes.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    activated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    activated_at = Column(DateTime, default=now_msk, nullable=False)
 
     promo_code = relationship("PromoCode", back_populates="activations")
 
@@ -239,7 +244,7 @@ class ApiKey(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     key = Column(String(64), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
     last_used_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="api_key")
