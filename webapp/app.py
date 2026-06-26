@@ -28,6 +28,7 @@ from database.db import (
     get_avatars_with_ownership, buy_avatar, equip_avatar, equip_frame,
     spin_roulette,
     admin_create_promo_code, admin_edit_promo_code,
+    get_news, get_news_by_id, get_all_news_admin, add_news, edit_news, delete_news, toggle_news,
     admin_delete_promo_code, admin_get_promo_codes, activate_promo_code, toggle_promo_code,
     save_user_settings, update_user_profile, claim_offline_income,
     get_or_create_api_key, regenerate_api_key, get_user_by_api_key,
@@ -76,6 +77,8 @@ async def get_user(telegram_id: int, username: str = None, first_name: str = Non
         "profile_badge": user.profile_badge,
         "vpn_notify_enabled": user.vpn_notify_enabled,
         "offline_income_enabled": user.offline_income_enabled,
+        "news_show": user.news_show,
+        "news_notify_enabled": user.news_notify_enabled,
         "equipped_avatar": user.equipped_avatar or "👤",
         "equipped_frame": user.equipped_frame or ""
     }
@@ -223,11 +226,16 @@ async def set_autobuy(telegram_id: int, body: AutobuySettings):
 class UserSettingsBody(BaseModel):
     vpn_notify_enabled: Optional[bool] = None
     offline_income_enabled: Optional[bool] = None
+    news_show: Optional[bool] = None
+    news_notify_enabled: Optional[bool] = None
 
 
 @app.post("/api/user/settings/{telegram_id}")
 async def update_settings(telegram_id: int, body: UserSettingsBody):
-    return await save_user_settings(telegram_id, body.vpn_notify_enabled, body.offline_income_enabled)
+    return await save_user_settings(
+        telegram_id, body.vpn_notify_enabled, body.offline_income_enabled,
+        body.news_show, body.news_notify_enabled
+    )
 
 
 class ProfileUpdateBody(BaseModel):
@@ -855,3 +863,76 @@ async def v1_upgrades(key: str):
     all_upgrades = await get_upgrades()
     owned = [u for u in all_upgrades if u["id"] in ids]
     return {"ok": True, "upgrades": owned}
+
+
+# ── News ──────────────────────────────────────────────────────
+
+@app.get("/api/news")
+async def api_get_news(limit: int = 50):
+    return await get_news(limit=limit)
+
+
+@app.get("/api/news/{news_id}")
+async def api_get_news_item(news_id: int):
+    item = await get_news_by_id(news_id)
+    if not item:
+        raise HTTPException(status_code=404, detail={"ok": False, "error": "Не найдено"})
+    return item
+
+
+@app.get("/api/admin/news/{telegram_id}")
+async def api_admin_get_news(telegram_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Нет доступа")
+    return await get_all_news_admin()
+
+
+class NewsBody(BaseModel):
+    admin_telegram_id: int
+    title: str
+    icon: Optional[str] = "📰"
+    content: str
+
+
+@app.post("/api/admin/news/add")
+async def api_admin_add_news(data: NewsBody):
+    user = await get_user_by_telegram_id(data.admin_telegram_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Нет доступа")
+    return await add_news(data.title, data.icon, data.content)
+
+
+class NewsEditBody(BaseModel):
+    admin_telegram_id: int
+    title: Optional[str] = None
+    icon: Optional[str] = None
+    content: Optional[str] = None
+
+
+@app.post("/api/admin/news/edit/{news_id}")
+async def api_admin_edit_news(news_id: int, data: NewsEditBody):
+    user = await get_user_by_telegram_id(data.admin_telegram_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Нет доступа")
+    return await edit_news(news_id, title=data.title, icon=data.icon, content=data.content)
+
+
+class NewsDeleteBody(BaseModel):
+    admin_telegram_id: int
+
+
+@app.post("/api/admin/news/delete/{news_id}")
+async def api_admin_delete_news(news_id: int, data: NewsDeleteBody):
+    user = await get_user_by_telegram_id(data.admin_telegram_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Нет доступа")
+    return await delete_news(news_id)
+
+
+@app.post("/api/admin/news/toggle/{news_id}")
+async def api_admin_toggle_news(news_id: int, data: NewsDeleteBody):
+    user = await get_user_by_telegram_id(data.admin_telegram_id)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Нет доступа")
+    return await toggle_news(news_id)

@@ -3,6 +3,7 @@ import logging
 from aiogram import Bot
 from database.db import (
     get_users_vpn_expiring, get_users_premium_expiring, auto_disable_expired_vpns,
+    get_unnotified_news, mark_news_notified, get_users_news_notify,
 )
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ async def send_notifications(bot: Bot):
     while True:
         try:
             await auto_disable_expired_vpns()
+
             if tick % 6 == 0:
                 vpn_users = await get_users_vpn_expiring(days_ahead=3)
                 for item in vpn_users:
@@ -43,6 +45,25 @@ async def send_notifications(bot: Bot):
                         )
                     except Exception:
                         pass
+
+            unnotified = await get_unnotified_news()
+            if unnotified:
+                notify_users = await get_users_news_notify()
+                for news in unnotified:
+                    preview = news.content[:100] + ('...' if len(news.content) > 100 else '')
+                    for tg_id in notify_users:
+                        try:
+                            await bot.send_message(
+                                tg_id,
+                                f"📰 <b>Новая новость!</b>\n\n"
+                                f"{news.icon} <b>{news.title}</b>\n\n"
+                                f"{preview}\n\n"
+                                f"<i>Открыть в приложении для чтения полностью.</i>",
+                                parse_mode="HTML"
+                            )
+                        except Exception:
+                            pass
+                    await mark_news_notified(news.id)
 
         except Exception as e:
             logger.error(f"Notification error: {e}")

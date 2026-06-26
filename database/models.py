@@ -45,6 +45,8 @@ class User(Base):
     last_offline_check = Column(DateTime, nullable=True)
     equipped_avatar = Column(String(20), default="👤", nullable=False)
     equipped_frame = Column(String(200), default="", nullable=False)
+    news_show = Column(Boolean, default=True, nullable=False)
+    news_notify_enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
 
     upgrades = relationship("UserUpgrade", back_populates="user")
@@ -248,3 +250,15 @@ class ApiKey(Base):
     last_used_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="api_key")
+
+
+class News(Base):
+    __tablename__ = "news"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    icon = Column(String(20), default="📰", nullable=False)
+    content = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    notify_sent = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)

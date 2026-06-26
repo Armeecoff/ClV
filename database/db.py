@@ -12,7 +12,7 @@ def now_msk() -> datetime:
 from database.models import (
     Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase,
     Promotion, UserActivityLog, Achievement, UserAchievement, AppSettings,
-    Avatar, UserAvatar, PromoCode, PromoCodeActivation, ApiKey
+    Avatar, UserAvatar, PromoCode, PromoCodeActivation, ApiKey, News
 )
 import secrets
 
@@ -51,6 +51,10 @@ async def init_db():
             "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS item_type VARCHAR(10) DEFAULT 'avatar' NOT NULL",
             "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS border_css VARCHAR(200) DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_frame VARCHAR(200) DEFAULT '' NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS news_show BOOLEAN DEFAULT TRUE NOT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS news_notify_enabled BOOLEAN DEFAULT TRUE NOT NULL",
+            "CREATE TABLE IF NOT EXISTS news (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, icon VARCHAR(20) DEFAULT '📰' NOT NULL, content TEXT NOT NULL, is_active BOOLEAN DEFAULT TRUE NOT NULL, notify_sent BOOLEAN DEFAULT FALSE NOT NULL, created_at TIMESTAMP DEFAULT NOW() NOT NULL)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_max_count INTEGER DEFAULT NULL",
         ]
         for sql in migrations:
             try:
@@ -1159,7 +1163,8 @@ async def get_users_with_vpn_notify() -> list:
 
 # ── User settings & profile ───────────────────────────────────
 
-async def save_user_settings(telegram_id: int, vpn_notify: bool = None, offline_income: bool = None) -> dict:
+async def save_user_settings(telegram_id: int, vpn_notify: bool = None, offline_income: bool = None,
+                             news_show: bool = None, news_notify: bool = None) -> dict:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -1172,6 +1177,10 @@ async def save_user_settings(telegram_id: int, vpn_notify: bool = None, offline_
                 await session.commit()
                 return {"ok": False, "error": "Требуется Premium"}
             user.offline_income_enabled = offline_income
+        if news_show is not None:
+            user.news_show = news_show
+        if news_notify is not None:
+            user.news_notify_enabled = news_notify
         await session.commit()
         return {"ok": True}
 
@@ -1598,3 +1607,109 @@ async def get_user_by_api_key(key: str) -> dict | None:
             "login_streak": user.login_streak,
             "created_at": user.created_at.isoformat(),
         }
+
+
+# ── News ──────────────────────────────────────────────────────
+
+def _news_dict(n: News) -> dict:
+    return {
+        "id": n.id,
+        "title": n.title,
+        "icon": n.icon,
+        "content": n.content,
+        "is_active": n.is_active,
+        "notify_sent": n.notify_sent,
+        "created_at": n.created_at.isoformat(),
+    }
+
+
+async def get_news(limit: int = 5) -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(News).where(News.is_active == True)
+            .order_by(News.created_at.desc()).limit(limit)
+        )
+        return [_news_dict(n) for n in result.scalars().all()]
+
+
+async def get_news_by_id(news_id: int) -> dict | None:
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        n = result.scalar_one_or_none()
+        return _news_dict(n) if n else None
+
+
+async def get_all_news_admin() -> list:
+    async with async_session() as session:
+        result = await session.execute(select(News).order_by(News.created_at.desc()))
+        return [_news_dict(n) for n in result.scalars().all()]
+
+
+async def add_news(title: str, icon: str, content: str) -> dict:
+    async with async_session() as session:
+        n = News(title=title, icon=icon or "📰", content=content)
+        session.add(n)
+        await session.commit()
+        await session.refresh(n)
+        return {"ok": True, "news": _news_dict(n)}
+
+
+async def edit_news(news_id: int, **kwargs) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        n = result.scalar_one_or_none()
+        if not n:
+            return {"ok": False, "error": "Новость не найдена"}
+        for k, v in kwargs.items():
+            if hasattr(n, k) and v is not None:
+                setattr(n, k, v)
+        await session.commit()
+        return {"ok": True}
+
+
+async def delete_news(news_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        n = result.scalar_one_or_none()
+        if not n:
+            return {"ok": False, "error": "Новость не найдена"}
+        await session.delete(n)
+        await session.commit()
+        return {"ok": True}
+
+
+async def toggle_news(news_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        n = result.scalar_one_or_none()
+        if not n:
+            return {"ok": False, "error": "Новость не найдена"}
+        n.is_active = not n.is_active
+        await session.commit()
+        return {"ok": True, "is_active": n.is_active}
+
+
+async def get_unnotified_news() -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(News).where(News.notify_sent == False, News.is_active == True)
+            .order_by(News.created_at.desc())
+        )
+        return result.scalars().all()
+
+
+async def mark_news_notified(news_id: int):
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        n = result.scalar_one_or_none()
+        if n:
+            n.notify_sent = True
+            await session.commit()
+
+
+async def get_users_news_notify() -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(User.telegram_id).where(User.news_notify_enabled == True)
+        )
+        return [row[0] for row in result.all()]

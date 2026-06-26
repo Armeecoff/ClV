@@ -366,6 +366,21 @@ select.form-input { cursor:pointer; }
 .hlog-body { flex:1; min-width:0; }
 .hlog-desc { font-size:12px; word-break:break-word; }
 .hlog-date { font-size:10px; color:var(--text2); margin-top:2px; font-family:monospace; }
+
+/* ══ NEWS ══ */
+.news-section { margin-top:16px; }
+.news-section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.news-section-title { font-size:16px; font-weight:800; color:var(--text); }
+.news-goto-btn { font-size:12px; color:var(--text2); background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:5px 13px; cursor:pointer; }
+.news-card { display:flex; align-items:flex-start; gap:10px; background:var(--bg2); border-radius:14px; padding:13px 15px; margin-bottom:8px; border:1px solid var(--border); cursor:pointer; transition:background .15s; }
+.news-card:active { background:var(--bg3); }
+.news-card-icon { font-size:22px; flex-shrink:0; line-height:1; }
+.news-card-body { flex:1; min-width:0; }
+.news-card-title { font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }
+.news-card-preview { font-size:12px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; }
+.news-card-date { font-size:11px; color:var(--text2); }
+.news-full-content { font-size:14px; line-height:1.6; color:var(--text); white-space:pre-wrap; word-break:break-word; }
+.news-full-date { font-size:11px; color:var(--text2); margin-top:10px; font-family:monospace; }
 </style>
 </head>
 <body>
@@ -401,6 +416,13 @@ select.form-input { cursor:pointer; }
   <div class="clicker-wrap">
     <button class="click-btn" id="click-btn">💎</button>
     <div class="click-hint">Тапай по кнопке!</div>
+  </div>
+  <div class="news-section" id="clicker-news-section">
+    <div class="news-section-header">
+      <div class="news-section-title">📰 Последние новости</div>
+      <button class="news-goto-btn" onclick="openAllNews()">Перейти →</button>
+    </div>
+    <div id="clicker-news-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
 </div>
 
@@ -578,9 +600,27 @@ select.form-input { cursor:pointer; }
     <div class="toggle-row">
       <div>
         <div style="font-size:13px">Уведомления об истечении VPN</div>
-        <div style="font-size:11px;color:var(--text2)">Напоминание за 3 дня до окончания, а также при появлении нового VPN</div>
+        <div style="font-size:11px;color:var(--text2)">Напоминание за 3 дня до окончания</div>
       </div>
       <label class="toggle-sw"><input type="checkbox" id="setting-vpn-notify" onchange="saveUserSettings()"><span class="toggle-knob"></span></label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">📰 Новости</div>
+    <div class="toggle-row">
+      <div>
+        <div style="font-size:13px">Показывать новости под кликером</div>
+        <div style="font-size:11px;color:var(--text2)">Лента последних новостей на главной</div>
+      </div>
+      <label class="toggle-sw"><input type="checkbox" id="setting-news-show" onchange="saveUserSettings()"><span class="toggle-knob"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div>
+        <div style="font-size:13px">Уведомления о новых новостях</div>
+        <div style="font-size:11px;color:var(--text2)">Бот пришлёт сообщение при публикации</div>
+      </div>
+      <label class="toggle-sw"><input type="checkbox" id="setting-news-notify" onchange="saveUserSettings()"><span class="toggle-knob"></span></label>
     </div>
   </div>
 
@@ -626,6 +666,7 @@ select.form-input { cursor:pointer; }
     <button class="admin-tab" onclick="switchAdminTab('promoCodes')">🎟 Коды</button>
     <button class="admin-tab" onclick="switchAdminTab('logs')">📋 Логи</button>
     <button class="admin-tab" onclick="switchAdminTab('achievements')">🏆 Ачивки</button>
+    <button class="admin-tab" onclick="switchAdminTab('news')">📰 Новости</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -703,6 +744,11 @@ select.form-input { cursor:pointer; }
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddAchModal()">➕ Добавить ачивку</button>
     <div id="admin-ach-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
+
+  <div id="admin-tab-news" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddNewsModal()">➕ Добавить новость</button>
+    <div id="admin-news-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
 </div>
 
 <!-- NAV -->
@@ -715,6 +761,45 @@ select.form-input { cursor:pointer; }
   <button class="nav-btn" onclick="navigate('settings')"id="nav-settings"><span class="icon">⚙️</span><span>Настройки</span></button>
   <button class="nav-btn" onclick="navigate('admin')"   id="nav-admin" style="display:none"><span class="icon">🛠</span><span>Админ</span></button>
 </nav>
+
+<!-- MODAL: News detail (read) -->
+<div class="modal-overlay" id="modal-news-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-news-detail-title" style="font-size:16px;line-height:1.3"></div>
+    <div style="max-height:60vh;overflow-y:auto;margin-top:8px">
+      <div class="news-full-content" id="modal-news-detail-body"></div>
+      <div class="news-full-date" id="modal-news-detail-date"></div>
+    </div>
+    <button class="btn btn-outline" style="width:100%;margin-top:14px" onclick="closeModal('modal-news-detail')">Закрыть</button>
+  </div>
+</div>
+
+<!-- MODAL: News full list -->
+<div class="modal-overlay" id="modal-news-all">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📰 Все новости</div>
+    <div style="max-height:65vh;overflow-y:auto" id="modal-news-all-list"><div class="loader"><div class="spinner"></div></div></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:14px" onclick="closeModal('modal-news-all')">Закрыть</button>
+  </div>
+</div>
+
+<!-- MODAL: Admin add/edit news -->
+<div class="modal-overlay" id="modal-news-edit">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-news-edit-title">📰 Добавить новость</div>
+    <input type="hidden" id="news-edit-id">
+    <div class="form-group"><label class="form-label">Иконка (эмодзи)</label><input class="form-input" id="news-edit-icon" placeholder="📰" maxlength="5"></div>
+    <div class="form-group"><label class="form-label">Заголовок *</label><input class="form-input" id="news-edit-title" placeholder="Заголовок новости"></div>
+    <div class="form-group"><label class="form-label">Текст новости *</label><textarea class="form-input" id="news-edit-content" rows="6" placeholder="Полный текст новости..." style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="adminSaveNews()">💾 Сохранить</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-news-edit')">Отмена</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: User upgrades (admin) -->
 <div class="modal-overlay" id="modal-user-upgrades">
@@ -1035,6 +1120,13 @@ async function init() {
     if (vpnNotifyEl) vpnNotifyEl.checked = !!data.vpn_notify_enabled;
     const offlineEl = document.getElementById('setting-offline-income');
     if (offlineEl) offlineEl.checked = !!data.offline_income_enabled;
+    const newsShowEl  = document.getElementById('setting-news-show');
+    const newsNotifyEl= document.getElementById('setting-news-notify');
+    if (newsShowEl)   newsShowEl.checked   = data.news_show !== false;
+    if (newsNotifyEl) newsNotifyEl.checked = data.news_notify_enabled !== false;
+    const ns = document.getElementById('clicker-news-section');
+    if (ns) ns.style.display = data.news_show !== false ? 'block' : 'none';
+    loadNews();
     if (data.profile_badge) { const bi = document.getElementById('profile-badge-input'); if (bi) bi.value = data.profile_badge; }
     if (data.profile_bio)   { const bi = document.getElementById('profile-bio-input');   if (bi) bi.value = data.profile_bio; }
     if (S.acps > 0) startAutoClick();
@@ -1095,8 +1187,12 @@ function navigate(page) {
     if (S.user) {
       const vpnNotifyEl = document.getElementById('setting-vpn-notify');
       const offlineEl   = document.getElementById('setting-offline-income');
-      if (vpnNotifyEl) vpnNotifyEl.checked = !!S.user.vpn_notify_enabled;
-      if (offlineEl)   offlineEl.checked   = !!S.user.offline_income_enabled;
+      const newsShowEl  = document.getElementById('setting-news-show');
+      const newsNotifyEl= document.getElementById('setting-news-notify');
+      if (vpnNotifyEl)  vpnNotifyEl.checked  = !!S.user.vpn_notify_enabled;
+      if (offlineEl)    offlineEl.checked    = !!S.user.offline_income_enabled;
+      if (newsShowEl)   newsShowEl.checked   = S.user.news_show !== false;
+      if (newsNotifyEl) newsNotifyEl.checked = S.user.news_notify_enabled !== false;
     }
     if (S.isPremium) {
       document.getElementById('autobuy-section').style.display='block';
@@ -2672,7 +2768,7 @@ async function loadPromos() {
 let curAdminTab = 'vpn';
 function switchAdminTab(tab) {
   curAdminTab = tab;
-  ['vpn','upgrades','users','balance','promos','promoCodes','logs','achievements'].forEach(t => {
+  ['vpn','upgrades','users','balance','promos','promoCodes','logs','achievements','news'].forEach(t => {
     const el = document.getElementById(`admin-tab-${t}`);
     if (el) el.style.display = t===tab?'block':'none';
   });
@@ -2688,6 +2784,7 @@ function switchAdminTab(tab) {
   if (tab==='promoCodes')   loadAdminPromoCodes();
   if (tab==='logs')         loadAdminLogs();
   if (tab==='achievements') loadAdminAchievements();
+  if (tab==='news')         loadAdminNews();
 }
 
 async function loadAdminVPN() {
@@ -3161,15 +3258,31 @@ async function saveAutobuySettings() {
 // ══ SAVE USER SETTINGS ══
 async function saveUserSettings() {
   if (!S.user) return;
-  const vpnNotify = document.getElementById('setting-vpn-notify')?.checked ?? false;
-  const offlineIncome = document.getElementById('setting-offline-income')?.checked ?? false;
+  const vpnNotify    = document.getElementById('setting-vpn-notify')?.checked ?? false;
+  const offlineIncome= document.getElementById('setting-offline-income')?.checked ?? false;
+  const newsShow     = document.getElementById('setting-news-show')?.checked ?? true;
+  const newsNotify   = document.getElementById('setting-news-notify')?.checked ?? true;
   try {
     const r = await fetch(`/api/user/settings/${S.user.telegram_id}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({vpn_notify_enabled: vpnNotify, offline_income_enabled: offlineIncome})
+      body: JSON.stringify({
+        vpn_notify_enabled: vpnNotify,
+        offline_income_enabled: offlineIncome,
+        news_show: newsShow,
+        news_notify_enabled: newsNotify
+      })
     }).then(r=>r.json());
-    if (r.ok) showToast('✅ Настройки сохранены','success');
-    else showToast('❌ '+(r.error||'Ошибка'),'error');
+    if (r.ok) {
+      showToast('✅ Настройки сохранены','success');
+      if (S.user) {
+        S.user.vpn_notify_enabled    = vpnNotify;
+        S.user.offline_income_enabled= offlineIncome;
+        S.user.news_show             = newsShow;
+        S.user.news_notify_enabled   = newsNotify;
+      }
+      const ns = document.getElementById('clicker-news-section');
+      if (ns) ns.style.display = newsShow ? 'block' : 'none';
+    } else showToast('❌ '+(r.error||'Ошибка'),'error');
   } catch(e) { showToast('❌ Ошибка','error'); }
 }
 
@@ -3642,6 +3755,148 @@ async function deleteAchievement(id) {
     if (r.ok) { showToast('✅ Удалено', 'success'); loadAdminAchievements(); }
     else showToast('❌ ' + (r.error||'Ошибка'), 'error');
   } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ══ NEWS ══
+function fmtNewsDate(str) {
+  const d = parseMskDate(str);
+  if (!d) return '';
+  return d.toLocaleDateString('ru', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+async function loadNews() {
+  const container = document.getElementById('clicker-news-list');
+  if (!container) return;
+  try {
+    const news = await fetch('/api/news?limit=3').then(r=>r.json());
+    if (!news.length) { container.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:12px">Новостей пока нет</div>'; return; }
+    container.innerHTML = news.map(n => `
+      <div class="news-card" onclick="openNewsDetail(${n.id})">
+        <div class="news-card-icon">${n.icon||'📰'}</div>
+        <div class="news-card-body">
+          <div class="news-card-title">${escHtml(n.title)}</div>
+          <div class="news-card-preview">${escHtml((n.content||'').slice(0,80))}${(n.content||'').length>80?'…':''}</div>
+          <div class="news-card-date">${fmtNewsDate(n.created_at)}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) { container.innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center">Ошибка загрузки</div>'; }
+}
+
+async function openAllNews() {
+  const container = document.getElementById('modal-news-all-list');
+  if (container) container.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  openModal('modal-news-all');
+  try {
+    const news = await fetch('/api/news').then(r=>r.json());
+    if (!news.length) { container.innerHTML='<div style="text-align:center;color:var(--text2);font-size:13px;padding:16px">Новостей пока нет</div>'; return; }
+    container.innerHTML = news.map(n => `
+      <div class="news-card" onclick="openNewsDetail(${n.id})" style="margin-bottom:8px">
+        <div class="news-card-icon">${n.icon||'📰'}</div>
+        <div class="news-card-body">
+          <div class="news-card-title">${escHtml(n.title)}</div>
+          <div class="news-card-preview">${escHtml((n.content||'').slice(0,100))}${(n.content||'').length>100?'…':''}</div>
+          <div class="news-card-date">${fmtNewsDate(n.created_at)}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) { if(container) container.innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center">Ошибка загрузки</div>'; }
+}
+
+async function openNewsDetail(id) {
+  try {
+    const n = await fetch(`/api/news/${id}`).then(r=>r.json());
+    document.getElementById('modal-news-detail-title').textContent = (n.icon||'📰') + ' ' + (n.title||'');
+    document.getElementById('modal-news-detail-body').innerHTML = escHtml(n.content||'').replace(/\n/g,'<br>');
+    document.getElementById('modal-news-detail-date').textContent = fmtNewsDate(n.created_at);
+    openModal('modal-news-detail');
+  } catch(e) { showToast('❌ Ошибка загрузки','error'); }
+}
+
+async function loadAdminNews() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-news-list');
+  if (c) c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const news = await fetch(`/api/admin/news/${S.user.telegram_id}`).then(r=>r.json());
+    if (!Array.isArray(news) || !news.length) { c.innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center;padding:16px">Нет новостей</div>'; return; }
+    c.innerHTML = news.map(n => `
+      <div class="vpn-card" style="opacity:${n.is_active?1:0.5}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:20px">${n.icon||'📰'}</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">${escHtml(n.title)}</div>
+            <div style="font-size:11px;color:var(--text2)">${fmtNewsDate(n.created_at)}</div>
+          </div>
+          <span style="font-size:11px;color:${n.is_active?'var(--green)':'var(--text2)'}">${n.is_active?'✅ Активна':'🚫 Скрыта'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${escHtml((n.content||'').slice(0,120))}${(n.content||'').length>120?'…':''}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="openEditNewsModal(${n.id},'${escAttr(n.icon||'')}','${escAttr(n.title)}','${escAttr(n.content||'')}')">✏️ Изм</button>
+          <button class="btn btn-sm btn-outline" onclick="adminToggleNews(${n.id})">${n.is_active?'🚫 Скрыть':'✅ Показать'}</button>
+          <button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="adminDeleteNews(${n.id})">🗑</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { if(c) c.innerHTML='<div style="color:var(--text2);text-align:center;padding:12px">Ошибка</div>'; }
+}
+
+function escAttr(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+
+function openAddNewsModal() {
+  document.getElementById('modal-news-edit-title').textContent = '📰 Добавить новость';
+  document.getElementById('news-edit-id').value = '';
+  document.getElementById('news-edit-icon').value = '';
+  document.getElementById('news-edit-title').value = '';
+  document.getElementById('news-edit-content').value = '';
+  openModal('modal-news-edit');
+}
+
+function openEditNewsModal(id, icon, title, content) {
+  document.getElementById('modal-news-edit-title').textContent = '✏️ Редактировать новость';
+  document.getElementById('news-edit-id').value = id;
+  document.getElementById('news-edit-icon').value = icon;
+  document.getElementById('news-edit-title').value = title;
+  document.getElementById('news-edit-content').value = content.replace(/\\n/g,'\n');
+  openModal('modal-news-edit');
+}
+
+async function adminSaveNews() {
+  if (!S.user) return;
+  const id      = document.getElementById('news-edit-id').value;
+  const icon    = document.getElementById('news-edit-icon').value.trim() || '📰';
+  const title   = document.getElementById('news-edit-title').value.trim();
+  const content = document.getElementById('news-edit-content').value.trim();
+  if (!title)   { showToast('❌ Введите заголовок','error'); return; }
+  if (!content) { showToast('❌ Введите текст','error'); return; }
+  const body = { admin_telegram_id: S.user.telegram_id, icon, title, content };
+  try {
+    const url = id ? `/api/admin/news/edit/${id}` : '/api/admin/news/add';
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+    if (r.ok) { showToast('✅ Сохранено','success'); closeModal('modal-news-edit'); loadAdminNews(); }
+    else showToast('❌ '+(r.error||'Ошибка'),'error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
+}
+
+async function adminToggleNews(id) {
+  if (!S.user) return;
+  try {
+    const r = await fetch(`/api/admin/news/toggle/${id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({admin_telegram_id: S.user.telegram_id})
+    }).then(r=>r.json());
+    if (r.ok) { showToast('✅ Статус изменён','success'); loadAdminNews(); }
+    else showToast('❌ '+(r.error||'Ошибка'),'error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
+}
+
+async function adminDeleteNews(id) {
+  if (!S.user || !confirm('Удалить новость?')) return;
+  try {
+    const r = await fetch(`/api/admin/news/delete/${id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({admin_telegram_id: S.user.telegram_id})
+    }).then(r=>r.json());
+    if (r.ok) { showToast('✅ Удалено','success'); loadAdminNews(); }
+    else showToast('❌ '+(r.error||'Ошибка'),'error');
+  } catch(e) { showToast('❌ Ошибка','error'); }
 }
 
 // ══ MODAL UTILS ══
