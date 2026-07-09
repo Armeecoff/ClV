@@ -793,9 +793,9 @@ async def seed_achievements():
             Achievement(name="Аристократ", description="Купите Premium подписку", icon="👑", condition_type="is_premium", condition_value="0"),
             Achievement(name="Инженер Мощи", description="Купите все обычные улучшения", icon="⚡", condition_type="all_non_premium_upgrades", condition_value="0"),
             Achievement(name="Биткоин-Миллионер", description="Соберите 1 000 000 кликов на балансе", icon="💰", condition_type="balance_max_gte", condition_value="1000000"),
-            Achievement(name="Маг Эффектов", description="Купите все 8 эффектов интерфейса", icon="✨", condition_type="all_effects_owned", condition_value="8"),
+            Achievement(name="Маг Эффектов", description="Купите все 12 эффектов интерфейса", icon="✨", condition_type="all_effects_owned", condition_value="12"),
             Achievement(name="Охотник за Акциями", description="Откройте магазин во время активной акции", icon="🎉", condition_type="promo_exists", condition_value="0"),
-            Achievement(name="Путешественник Вселенных", description="Попробуйте все 15 тем оформления", icon="🎨", condition_type="all_themes_tried", condition_value="15"),
+            Achievement(name="Путешественник Вселенных", description="Попробуйте все 18 тем оформления", icon="🎨", condition_type="all_themes_tried", condition_value="18"),
             Achievement(name="Накопитель", description="Соберите 100 000 кликов на балансе", icon="💎", condition_type="balance_max_gte", condition_value="100000"),
             Achievement(name="Постоянный гость", description="Заходите в приложение 7 дней подряд", icon="🔥", condition_type="login_streak_gte", condition_value="7"),
             Achievement(name="Верный пользователь", description="Зайдите в приложение 30 дней", icon="📅", condition_type="login_days_gte", condition_value="30"),
@@ -814,12 +814,23 @@ async def seed_new_achievements():
         {"name": "Легенда", "description": "Зайдите в приложение 100 дней", "icon": "🏅", "condition_type": "login_days_gte", "condition_value": "100"},
         {"name": "Машина кликов", "description": "Получите 5 авто-кликов в секунду", "icon": "🤖", "condition_type": "autoclk_gte", "condition_value": "5"},
         {"name": "Кибер-завод", "description": "Получите 10 авто-кликов в секунду", "icon": "🏭", "condition_type": "autoclk_gte", "condition_value": "10"},
+        {"name": "Победитель", "description": "Выиграть 777", "icon": "🎰", "condition_type": "manual", "condition_value": "0"},
+    ]
+    updated_items = [
+        {"name": "Маг Эффектов", "description": "Купите все 12 эффектов интерфейса", "condition_value": "12"},
+        {"name": "Путешественник Вселенных", "description": "Попробуйте все 18 тем оформления", "condition_value": "18"},
     ]
     async with async_session() as session:
         for item in new_items:
             res = await session.execute(select(Achievement).where(Achievement.name == item["name"]))
             if not res.scalar_one_or_none():
                 session.add(Achievement(**item))
+        for item in updated_items:
+            res = await session.execute(select(Achievement).where(Achievement.name == item["name"]))
+            existing = res.scalar_one_or_none()
+            if existing and existing.condition_value != item["condition_value"]:
+                existing.condition_value = item["condition_value"]
+                existing.description = item["description"]
         await session.commit()
 
 
@@ -1273,6 +1284,139 @@ async def spin_roulette(telegram_id: int, bet: int) -> dict:
     }
 
 
+async def unlock_achievement_by_name(user_id: int, name: str) -> dict | None:
+    async with async_session() as session:
+        ach_res = await session.execute(
+            select(Achievement).where(Achievement.name == name, Achievement.is_active == True)
+        )
+        ach = ach_res.scalar_one_or_none()
+        if not ach:
+            return None
+        exists_res = await session.execute(
+            select(UserAchievement).where(
+                UserAchievement.user_id == user_id, UserAchievement.achievement_id == ach.id
+            )
+        )
+        if exists_res.scalar_one_or_none():
+            return None
+        session.add(UserAchievement(user_id=user_id, achievement_id=ach.id))
+        await session.commit()
+        return {"id": ach.id, "name": ach.name, "icon": ach.icon}
+
+
+# ── Dice (Кубик) ─────────────────────────────────────────────────
+
+DICE_OUTCOMES = [
+    {"face": 1, "mult": 0.5,  "weight": 34},
+    {"face": 2, "mult": 0.75, "weight": 25},
+    {"face": 3, "mult": 1.0,  "weight": 25},
+    {"face": 4, "mult": 1.5,  "weight": 10},
+    {"face": 5, "mult": 2.0,  "weight": 5},
+    {"face": 6, "mult": 5.0,  "weight": 1},
+]
+
+
+async def spin_dice(telegram_id: int, bet: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if bet < 100:
+            return {"ok": False, "error": "Минимальная ставка: 100 кликов"}
+        if bet > user.balance:
+            return {"ok": False, "error": "Недостаточно кликов"}
+
+        weights = [o["weight"] for o in DICE_OUTCOMES]
+        outcome = random.choices(DICE_OUTCOMES, weights=weights, k=1)[0]
+        payout = int(bet * outcome["mult"])
+        user.balance = user.balance - bet + payout
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        await session.commit()
+        uid = user.id
+    delta = payout - bet
+    sign = "+" if delta >= 0 else ""
+    await add_user_log(uid, telegram_id, "dice", f"Кубик: ставка {bet}, выпало {outcome['face']}, {sign}{delta}")
+    return {
+        "ok": True,
+        "face": outcome["face"],
+        "mult": outcome["mult"],
+        "bet": bet,
+        "payout": payout,
+        "delta": delta,
+        "new_balance": user.balance
+    }
+
+
+# ── 777 (Слоты) ──────────────────────────────────────────────────
+
+SLOT777_SYMBOLS = ["🍋", "🍇", "🅱️", "7️⃣"]
+
+SLOT777_OUTCOMES = [
+    {"type": "lemon3", "symbol": "🍋",  "mult": 1.5, "weight": 10,   "label": "3 лимона"},
+    {"type": "grape3", "symbol": "🍇",  "mult": 2.0, "weight": 5,    "label": "3 винограда"},
+    {"type": "bar3",   "symbol": "🅱️", "mult": 3.0, "weight": 2.5,  "label": "3 BAR"},
+    {"type": "s777",   "symbol": "7️⃣", "mult": 5.0, "weight": 1,    "label": "777"},
+    {"type": "pair",   "symbol": None,  "mult": 0.5, "weight": 40,   "label": "2 одинаковых"},
+    {"type": "loss",   "symbol": None,  "mult": 0.0, "weight": 41.5, "label": "Без совпадений"},
+]
+
+
+def _slot777_reels(outcome: dict) -> list:
+    if outcome["type"] in ("lemon3", "grape3", "bar3", "s777"):
+        return [outcome["symbol"]] * 3
+    if outcome["type"] == "pair":
+        pair_sym = random.choice(SLOT777_SYMBOLS)
+        other_pool = [s for s in SLOT777_SYMBOLS if s != pair_sym]
+        other_sym = random.choice(other_pool)
+        reels = [pair_sym, pair_sym, other_sym]
+        random.shuffle(reels)
+        return reels
+    reels = random.sample(SLOT777_SYMBOLS, k=3)
+    return reels
+
+
+async def spin_slot777(telegram_id: int, bet: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        if bet < 100:
+            return {"ok": False, "error": "Минимальная ставка: 100 кликов"}
+        if bet > user.balance:
+            return {"ok": False, "error": "Недостаточно кликов"}
+
+        weights = [o["weight"] for o in SLOT777_OUTCOMES]
+        outcome = random.choices(SLOT777_OUTCOMES, weights=weights, k=1)[0]
+        reels = _slot777_reels(outcome)
+        payout = int(bet * outcome["mult"])
+        user.balance = user.balance - bet + payout
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        await session.commit()
+        uid = user.id
+    delta = payout - bet
+    sign = "+" if delta >= 0 else ""
+    await add_user_log(uid, telegram_id, "slot777", f"777: ставка {bet}, {outcome['label']}, {sign}{delta}")
+    achievement = None
+    if outcome["type"] == "s777":
+        achievement = await unlock_achievement_by_name(uid, "Победитель")
+    return {
+        "ok": True,
+        "reels": reels,
+        "outcome_type": outcome["type"],
+        "label": outcome["label"],
+        "mult": outcome["mult"],
+        "bet": bet,
+        "payout": payout,
+        "delta": delta,
+        "new_balance": user.balance,
+        "achievement": achievement
+    }
+
+
 # ── Avatars ───────────────────────────────────────────────────
 
 AVATAR_SEED = [
@@ -1303,6 +1447,12 @@ AVATAR_SEED = [
     {"name": "Неоновая",    "emoji": "🟢", "price": 8000,  "description": "Неоновая зелёная",      "item_type": "frame", "border_css": "outline: 3px solid #00ff88; outline-offset: 2px; box-shadow: 0 0 14px #00ff88"},
     {"name": "Огненная",    "emoji": "🔴", "price": 9000,  "description": "Огненная рамка",        "item_type": "frame", "border_css": "outline: 3px solid #ff4500; outline-offset: 2px; box-shadow: 0 0 14px #ff4500"},
     {"name": "Алмазная",    "emoji": "💎", "price": 15000, "description": "Алмазная рамка",        "item_type": "frame", "border_css": "outline: 3px solid #b9f2ff; outline-offset: 2px; box-shadow: 0 0 16px #b9f2ff, 0 0 30px #7dd8ff"},
+    {"name": "Панда",       "emoji": "🐼", "price": 2000,  "description": "Бамбуковый мишка",      "item_type": "avatar"},
+    {"name": "Осьминог",    "emoji": "🐙", "price": 3000,  "description": "Хозяин глубин",         "item_type": "avatar"},
+    {"name": "Робокоп",     "emoji": "🦾", "price": 6500,  "description": "Механическая мощь",     "item_type": "avatar"},
+    {"name": "Пришелец II", "emoji": "🛸", "price": 9000,  "description": "Гость из другой галактики", "item_type": "avatar"},
+    {"name": "Изумрудная",  "emoji": "🟢", "price": 4000,  "description": "Изумрудная рамка",      "item_type": "frame", "border_css": "outline: 3px solid #10e070; outline-offset: 2px; box-shadow: 0 0 12px #10e070"},
+    {"name": "Рубиновая",   "emoji": "🔺", "price": 4500,  "description": "Рубиновая рамка",       "item_type": "frame", "border_css": "outline: 3px solid #e0103a; outline-offset: 2px; box-shadow: 0 0 12px #e0103a"},
 ]
 
 

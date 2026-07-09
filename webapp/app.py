@@ -26,7 +26,7 @@ from database.db import (
     get_premium_prices, set_premium_price,
     get_user_upgrades_admin, remove_user_upgrade,
     get_avatars_with_ownership, buy_avatar, equip_avatar, equip_frame,
-    spin_roulette,
+    spin_roulette, spin_dice, spin_slot777,
     admin_create_promo_code, admin_edit_promo_code,
     get_news, get_news_by_id, get_all_news_admin, add_news, edit_news, delete_news, toggle_news,
     admin_delete_promo_code, admin_get_promo_codes, activate_promo_code, toggle_promo_code,
@@ -262,6 +262,28 @@ class RouletteSpin(BaseModel):
 @app.post("/api/roulette/spin/{telegram_id}")
 async def roulette_spin(telegram_id: int, body: RouletteSpin):
     return await spin_roulette(telegram_id, body.bet)
+
+
+# ── Dice (Кубик) ──────────────────────────────────────────────
+
+class DiceSpin(BaseModel):
+    bet: int
+
+
+@app.post("/api/dice/spin/{telegram_id}")
+async def dice_spin(telegram_id: int, body: DiceSpin):
+    return await spin_dice(telegram_id, body.bet)
+
+
+# ── 777 (Слоты) ───────────────────────────────────────────────
+
+class Slot777Spin(BaseModel):
+    bet: int
+
+
+@app.post("/api/slot777/spin/{telegram_id}")
+async def slot777_spin(telegram_id: int, body: Slot777Spin):
+    return await spin_slot777(telegram_id, body.bet)
 
 
 # ── Avatars ───────────────────────────────────────────────────
@@ -883,7 +905,7 @@ async def api_get_news_item(news_id: int):
 @app.get("/api/admin/news/{telegram_id}")
 async def api_admin_get_news(telegram_id: int):
     user = await get_user_by_telegram_id(telegram_id)
-    if not user or not user.get("is_admin"):
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await get_all_news_admin()
 
@@ -898,7 +920,7 @@ class NewsBody(BaseModel):
 @app.post("/api/admin/news/add")
 async def api_admin_add_news(data: NewsBody):
     user = await get_user_by_telegram_id(data.admin_telegram_id)
-    if not user or not user.get("is_admin"):
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await add_news(data.title, data.icon, data.content)
 
@@ -913,7 +935,7 @@ class NewsEditBody(BaseModel):
 @app.post("/api/admin/news/edit/{news_id}")
 async def api_admin_edit_news(news_id: int, data: NewsEditBody):
     user = await get_user_by_telegram_id(data.admin_telegram_id)
-    if not user or not user.get("is_admin"):
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await edit_news(news_id, title=data.title, icon=data.icon, content=data.content)
 
@@ -925,7 +947,7 @@ class NewsDeleteBody(BaseModel):
 @app.post("/api/admin/news/delete/{news_id}")
 async def api_admin_delete_news(news_id: int, data: NewsDeleteBody):
     user = await get_user_by_telegram_id(data.admin_telegram_id)
-    if not user or not user.get("is_admin"):
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await delete_news(news_id)
 
@@ -933,6 +955,6 @@ async def api_admin_delete_news(news_id: int, data: NewsDeleteBody):
 @app.post("/api/admin/news/toggle/{news_id}")
 async def api_admin_toggle_news(news_id: int, data: NewsDeleteBody):
     user = await get_user_by_telegram_id(data.admin_telegram_id)
-    if not user or not user.get("is_admin"):
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await toggle_news(news_id)

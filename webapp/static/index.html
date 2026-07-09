@@ -41,6 +41,9 @@ body.theme-winter   { --bg:#050d1a; --bg2:#0a1525; --bg3:#0f1e33; --border:#1a3a
 body.theme-aurora   { --bg:#020a10; --bg2:#041520; --bg3:#062030; --border:#0a3040; --accent:#00ff88; --accent2:#00ffcc; --accent3:#00cc66; }
 body.theme-autumn   { --bg:#100800; --bg2:#1a1000; --bg3:#251800; --border:#4a2800; --accent:#e07020; --accent2:#f09030; --accent3:#c05010; }
 body.theme-crystals { --bg:#080510; --bg2:#0f0a20; --bg3:#150f30; --border:#281a50; --accent:#c080ff; --accent2:#e0a0ff; --accent3:#9040ff; }
+body.theme-mint     { --bg:#04120e; --bg2:#081e18; --bg3:#0d2a20; --border:#155a44; --accent:#2fe0a8; --accent2:#5ff2c4; --accent3:#1fb888; }
+body.theme-royal    { --bg:#0a0518; --bg2:#140a28; --bg3:#1e1038; --border:#3a2060; --accent:#a855f7; --accent2:#facc15; --accent3:#7e22ce; }
+body.theme-candy    { --bg:#170512; --bg2:#250a1e; --bg3:#33102a; --border:#5c1e46; --accent:#ff5fa2; --accent2:#ffb3d9; --accent3:#e63e8a; }
 
 /* ══ COLORS ══ */
 body.color-red    { --accent:#f04040; --accent2:#ff7070; --accent3:#c02020; }
@@ -381,6 +384,17 @@ select.form-input { cursor:pointer; }
 .news-card-date { font-size:11px; color:var(--text2); }
 .news-full-content { font-size:14px; line-height:1.6; color:var(--text); white-space:pre-wrap; word-break:break-word; }
 .news-full-date { font-size:11px; color:var(--text2); margin-top:10px; font-family:monospace; }
+
+/* ══ CASINO ══ */
+.casino-game-card { display:flex; align-items:center; gap:12px; background:var(--bg2); border-radius:14px; padding:14px 16px; margin-bottom:10px; border:1px solid var(--border); cursor:pointer; transition:background .15s; }
+.casino-game-card:active { background:var(--bg3); }
+.casino-game-icon { font-size:32px; flex-shrink:0; }
+.casino-game-body { flex:1; min-width:0; }
+.casino-game-title { font-size:15px; font-weight:800; color:var(--text); }
+.casino-game-desc { font-size:12px; color:var(--text2); margin-top:2px; }
+.dice-display { text-align:center; font-size:72px; margin:10px 0; min-height:80px; display:flex; align-items:center; justify-content:center; }
+.slot777-reels { display:flex; gap:8px; justify-content:center; margin:10px 0; }
+.slot777-reel { width:64px; height:64px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:32px; }
 </style>
 </head>
 <body>
@@ -538,6 +552,9 @@ select.form-input { cursor:pointer; }
       <div class="theme-btn" onclick="setTheme('aurora')" id="tbtn-aurora"><div class="t-icon">🌌</div>Аврора</div>
       <div class="theme-btn" onclick="setTheme('autumn')" id="tbtn-autumn"><div class="t-icon">🍂</div>Осень</div>
       <div class="theme-btn" onclick="setTheme('crystals')" id="tbtn-crystals"><div class="t-icon">💎</div>Кристаллы</div>
+      <div class="theme-btn" onclick="setTheme('mint')" id="tbtn-mint"><div class="t-icon">🌿</div>Мята</div>
+      <div class="theme-btn" onclick="setTheme('royal')" id="tbtn-royal"><div class="t-icon">🔮</div>Королевская</div>
+      <div class="theme-btn" onclick="setTheme('candy')" id="tbtn-candy"><div class="t-icon">🍬</div>Конфетти</div>
     </div>
   </div>
 
@@ -755,12 +772,111 @@ select.form-input { cursor:pointer; }
 <nav class="nav">
   <button class="nav-btn active" onclick="navigate('clicker')" id="nav-clicker"><span class="icon">🖱</span><span>Кликер</span></button>
   <button class="nav-btn" onclick="navigate('shop')"    id="nav-shop">   <span class="icon">🛒</span><span>Магазин</span></button>
-  <button class="nav-btn" onclick="openRouletteModal()" id="nav-roulette"><span class="icon">🎰</span><span>Рулетка</span></button>
+  <button class="nav-btn" onclick="openCasinoHubModal()" id="nav-roulette"><span class="icon">🎰</span><span>Казино</span></button>
   <button class="nav-btn" onclick="navigate('vpn')"     id="nav-vpn">    <span class="icon">🔐</span><span>VPN</span></button>
   <button class="nav-btn" onclick="navigate('profile')" id="nav-profile"><span class="icon">👤</span><span>Профиль</span></button>
   <button class="nav-btn" onclick="navigate('settings')"id="nav-settings"><span class="icon">⚙️</span><span>Настройки</span></button>
   <button class="nav-btn" onclick="navigate('admin')"   id="nav-admin" style="display:none"><span class="icon">🛠</span><span>Админ</span></button>
 </nav>
+
+<!-- MODAL: Casino hub -->
+<div class="modal-overlay" id="modal-casino-hub">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎰 Казино</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px">Выбери игру и испытай удачу!</div>
+    <div class="casino-game-card" onclick="closeModal('modal-casino-hub');openRouletteModal()">
+      <div class="casino-game-icon">🎡</div>
+      <div class="casino-game-body">
+        <div class="casino-game-title">Рулетка</div>
+        <div class="casino-game-desc">Крути колесо на удачу</div>
+      </div>
+    </div>
+    <div class="casino-game-card" onclick="closeModal('modal-casino-hub');openDiceModal()">
+      <div class="casino-game-icon">🎲</div>
+      <div class="casino-game-body">
+        <div class="casino-game-title">Кубик</div>
+        <div class="casino-game-desc">Брось кубик и получи множитель</div>
+      </div>
+    </div>
+    <div class="casino-game-card" onclick="closeModal('modal-casino-hub');openSlot777Modal()">
+      <div class="casino-game-icon">🎰</div>
+      <div class="casino-game-body">
+        <div class="casino-game-title">777</div>
+        <div class="casino-game-desc">Собери три одинаковых символа</div>
+      </div>
+    </div>
+    <button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="closeModal('modal-casino-hub')">Закрыть</button>
+  </div>
+</div>
+
+<!-- MODAL: Dice (Кубик) -->
+<div class="modal-overlay" id="modal-dice">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎲 Кубик</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px">Брось кубик и получи множитель ставки!</div>
+    <div class="dice-display" id="dice-display">🎲</div>
+    <div id="dice-result-text" style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px;min-height:20px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2)">
+        <b style="color:#e53e3e">1×0.5 (34%)</b> · <b style="color:#ed8936">2×0.75 (25%)</b> · <b style="color:#718096">3×1 (25%)</b> · <b style="color:#38a169">4×1.5 (10%)</b> · <b style="color:#3182ce">5×2 (5%)</b> · <b style="color:#d69e2e">6×5 (1%)</b>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ставка (кликов)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-outline btn-sm" onclick="setDiceBet(100)">100</button>
+        <button class="btn btn-outline btn-sm" onclick="setDiceBet(500)">500</button>
+        <button class="btn btn-outline btn-sm" onclick="setDiceBet(1000)">1к</button>
+        <button class="btn btn-outline btn-sm" onclick="setDiceBet(5000)">5к</button>
+        <button class="btn btn-outline btn-sm" onclick="setDiceHalf()">50%</button>
+        <button class="btn btn-outline btn-sm" onclick="setDiceAll()">100%</button>
+      </div>
+      <input class="form-input" type="number" id="dice-bet" placeholder="100" min="100">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-dice')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" id="dice-spin-btn" onclick="spinDice()">🎲 Бросить!</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: 777 -->
+<div class="modal-overlay" id="modal-slot777">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎰 777</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:12px">Собери три одинаковых символа и сорви куш!</div>
+    <div class="slot777-reels">
+      <div class="slot777-reel" id="slot777-reel-0">❔</div>
+      <div class="slot777-reel" id="slot777-reel-1">❔</div>
+      <div class="slot777-reel" id="slot777-reel-2">❔</div>
+    </div>
+    <div id="slot777-result-text" style="text-align:center;font-size:14px;font-weight:700;margin-bottom:12px;min-height:20px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2)">
+        <b style="color:#d69e2e">🍋🍋🍋×1.5 (10%)</b> · <b style="color:#38a169">🍇🍇🍇×2 (5%)</b> · <b style="color:#3182ce">🅱️🅱️🅱️×3 (2.5%)</b> · <b style="color:#e53e3e">7️⃣7️⃣7️⃣×5 (1%)</b> · <b style="color:#718096">2 одинаковых×0.5 (40%)</b>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ставка (кликов)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-outline btn-sm" onclick="setSlot777Bet(100)">100</button>
+        <button class="btn btn-outline btn-sm" onclick="setSlot777Bet(500)">500</button>
+        <button class="btn btn-outline btn-sm" onclick="setSlot777Bet(1000)">1к</button>
+        <button class="btn btn-outline btn-sm" onclick="setSlot777Bet(5000)">5к</button>
+        <button class="btn btn-outline btn-sm" onclick="setSlot777Half()">50%</button>
+        <button class="btn btn-outline btn-sm" onclick="setSlot777All()">100%</button>
+      </div>
+      <input class="form-input" type="number" id="slot777-bet" placeholder="100" min="100">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-slot777')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" id="slot777-spin-btn" onclick="spinSlot777()">🎰 Крутить!</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: News detail (read) -->
 <div class="modal-overlay" id="modal-news-detail">
@@ -2619,6 +2735,10 @@ const SHOP_ITEMS = [
   {id:'ring',   name:'🌈 Кольцо',   desc:'Радужное кольцо вокруг кнопки',price:4000},
   {id:'crown',  name:'👑 Корона',   desc:'Золотая корона над кнопкой',   price:5000},
   {id:'glow',   name:'💫 Ореол',    desc:'Мерцающий ореол вокруг кнопки',price:2000},
+  {id:'lightning', name:'⚡ Молния', desc:'Электрические разряды при клике', price:4500},
+  {id:'hearts',  name:'💖 Сердца',  desc:'Летящие сердечки при клике',   price:2000},
+  {id:'smoke',   name:'💨 Дым',     desc:'Клубы дыма при клике',         price:1500},
+  {id:'rainbow',  name:'🌈 Радуга-трейл', desc:'Радужный шлейф частиц при клике', price:5000},
 ];
 const ownedItems   = new Set(JSON.parse(localStorage.getItem('ownedItems') || '[]'));
 let equippedItem   = localStorage.getItem('equippedItem') || null;
@@ -2692,6 +2812,10 @@ function spawnClickEffect(x, y) {
     fire:  spawnFire,
     ice:   spawnIce,
     spark: spawnSpark,
+    lightning: spawnLightning,
+    hearts: spawnHearts,
+    smoke: spawnSmoke,
+    rainbow: spawnRainbow,
   };
   if (effects[equippedItem]) effects[equippedItem](x, y);
 }
@@ -2727,6 +2851,18 @@ function spawnIce(x, y) {
 }
 function spawnSpark(x, y) {
   for (let i=0; i<14; i++) spawnParticles(x, y, [{size:3+Math.random()*3, color:`hsl(${200+Math.random()*160},100%,70%)`, angle:i*25.7, speed:70+Math.random()*70}]);
+}
+function spawnLightning(x, y) {
+  for (let i=0; i<10; i++) spawnParticles(x, y, [{size:2+Math.random()*3, color:`rgba(255,255,${150+Math.floor(Math.random()*105)},0.95)`, angle:Math.random()*360, speed:100+Math.random()*90}]);
+}
+function spawnHearts(x, y) {
+  for (let i=0; i<8; i++) spawnParticles(x, y, [{size:8+Math.random()*4, color:`hsl(${330+Math.random()*20},90%,65%)`, angle:-90+(Math.random()-0.5)*100, speed:40+Math.random()*30}]);
+}
+function spawnSmoke(x, y) {
+  for (let i=0; i<9; i++) spawnParticles(x, y, [{size:10+Math.random()*8, color:`rgba(${140+Math.floor(Math.random()*40)},${140+Math.floor(Math.random()*40)},${140+Math.floor(Math.random()*40)},0.5)`, angle:-90+(Math.random()-0.5)*60, speed:25+Math.random()*20}]);
+}
+function spawnRainbow(x, y) {
+  for (let i=0; i<12; i++) spawnParticles(x, y, [{size:5+Math.random()*4, color:`hsl(${i*30},100%,60%)`, angle:i*30, speed:55+Math.random()*45}]);
 }
 
 // ══ PROMOTIONS ══
@@ -3368,6 +3504,143 @@ async function spinRoulette() {
   } catch(e) {
     clearInterval(spinAnim);
     disp.textContent = '❌'; resultText.textContent = 'Ошибка соединения';
+  }
+  btn.disabled = false;
+}
+
+// ══ CASINO HUB ══
+function openCasinoHubModal() {
+  openModal('modal-casino-hub');
+}
+
+// ══ DICE (КУБИК) ══
+
+function setDiceBet(amount) {
+  document.getElementById('dice-bet').value = Math.min(amount, Math.floor(S.balance));
+}
+
+function setDiceHalf() {
+  document.getElementById('dice-bet').value = Math.floor(S.balance * 0.5);
+}
+
+function setDiceAll() {
+  document.getElementById('dice-bet').value = Math.floor(S.balance);
+}
+
+function openDiceModal() {
+  document.getElementById('dice-display').textContent = '🎲';
+  document.getElementById('dice-result-text').textContent = '';
+  document.getElementById('dice-bet').value = '';
+  document.getElementById('dice-spin-btn').disabled = false;
+  openModal('modal-dice');
+}
+
+async function spinDice() {
+  if (!S.user) return;
+  const bet = parseInt(document.getElementById('dice-bet').value);
+  if (!bet || bet < 100) { showToast('❌ Минимальная ставка 100 кликов','error'); return; }
+  if (bet > S.balance) { showToast('❌ Недостаточно кликов','error'); return; }
+  const btn = document.getElementById('dice-spin-btn');
+  const disp = document.getElementById('dice-display');
+  const resultText = document.getElementById('dice-result-text');
+  btn.disabled = true;
+  const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  let i = 0;
+  const spinAnim = setInterval(()=>{ disp.textContent = faces[i%faces.length]; i++; }, 80);
+  try {
+    const r = await fetch(`/api/dice/spin/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({bet})
+    }).then(r=>r.json());
+    clearInterval(spinAnim);
+    if (r.ok) {
+      S.balance = r.new_balance; updateBalanceUI(); pendingClicks = 0;
+      disp.textContent = faces[r.face - 1] || '🎲';
+      const delta = r.delta;
+      if (r.mult === 0) {
+        resultText.innerHTML = `<span style="color:#e53e3e">💀 Выпало ${r.face}! Проигрыш −${bet.toLocaleString('ru')} кликов</span>`;
+      } else if (r.mult < 1) {
+        resultText.innerHTML = `<span style="color:#ed8936">Выпало ${r.face} (×${r.mult}) | −${Math.abs(delta).toLocaleString('ru')} кликов</span>`;
+      } else if (r.mult === 1) {
+        resultText.innerHTML = `<span style="color:#718096">Выпало ${r.face} — возврат ставки</span>`;
+      } else {
+        resultText.innerHTML = `<span style="color:#38a169">🎉 Выпало ${r.face} (×${r.mult}) | +${delta.toLocaleString('ru')} кликов!</span>`;
+      }
+    } else {
+      disp.textContent = '❌';
+      resultText.textContent = r.error || 'Ошибка';
+    }
+  } catch(e) {
+    clearInterval(spinAnim);
+    disp.textContent = '❌'; resultText.textContent = 'Ошибка соединения';
+  }
+  btn.disabled = false;
+}
+
+// ══ 777 (СЛОТЫ) ══
+
+function setSlot777Bet(amount) {
+  document.getElementById('slot777-bet').value = Math.min(amount, Math.floor(S.balance));
+}
+
+function setSlot777Half() {
+  document.getElementById('slot777-bet').value = Math.floor(S.balance * 0.5);
+}
+
+function setSlot777All() {
+  document.getElementById('slot777-bet').value = Math.floor(S.balance);
+}
+
+function openSlot777Modal() {
+  ['slot777-reel-0','slot777-reel-1','slot777-reel-2'].forEach(id => document.getElementById(id).textContent = '❔');
+  document.getElementById('slot777-result-text').textContent = '';
+  document.getElementById('slot777-bet').value = '';
+  document.getElementById('slot777-spin-btn').disabled = false;
+  openModal('modal-slot777');
+}
+
+async function spinSlot777() {
+  if (!S.user) return;
+  const bet = parseInt(document.getElementById('slot777-bet').value);
+  if (!bet || bet < 100) { showToast('❌ Минимальная ставка 100 кликов','error'); return; }
+  if (bet > S.balance) { showToast('❌ Недостаточно кликов','error'); return; }
+  const btn = document.getElementById('slot777-spin-btn');
+  const reelEls = ['slot777-reel-0','slot777-reel-1','slot777-reel-2'].map(id => document.getElementById(id));
+  const resultText = document.getElementById('slot777-result-text');
+  btn.disabled = true;
+  const symbols = ['🍋','🍇','🅱️','7️⃣'];
+  let i = 0;
+  const spinAnim = setInterval(()=>{
+    reelEls.forEach((el, idx) => { el.textContent = symbols[(i+idx)%symbols.length]; });
+    i++;
+  }, 80);
+  try {
+    const r = await fetch(`/api/slot777/spin/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({bet})
+    }).then(r=>r.json());
+    clearInterval(spinAnim);
+    if (r.ok) {
+      S.balance = r.new_balance; updateBalanceUI(); pendingClicks = 0;
+      r.reels.forEach((sym, idx) => { reelEls[idx].textContent = sym; });
+      const delta = r.delta;
+      if (r.mult === 0) {
+        resultText.innerHTML = `<span style="color:#e53e3e">💀 ${r.label}! Проигрыш −${bet.toLocaleString('ru')} кликов</span>`;
+      } else if (r.mult < 1) {
+        resultText.innerHTML = `<span style="color:#ed8936">${r.label} (×${r.mult}) | −${Math.abs(delta).toLocaleString('ru')} кликов</span>`;
+      } else {
+        resultText.innerHTML = `<span style="color:#38a169">🎉 ${r.label} (×${r.mult}) | +${delta.toLocaleString('ru')} кликов!</span>`;
+      }
+      if (r.achievement) {
+        showToast(`🏆 Ачивка получена: ${r.achievement.icon||'🏆'} ${r.achievement.name}`,'success');
+      }
+    } else {
+      reelEls.forEach(el => el.textContent = '❌');
+      resultText.textContent = r.error || 'Ошибка';
+    }
+  } catch(e) {
+    clearInterval(spinAnim);
+    reelEls.forEach(el => el.textContent = '❌'); resultText.textContent = 'Ошибка соединения';
   }
   btn.disabled = false;
 }
