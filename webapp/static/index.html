@@ -652,6 +652,22 @@ select.form-input { cursor:pointer; }
     </div>
   </div>
 
+  <div class="settings-section" id="music-section">
+    <div class="settings-title">🎵 Музыка</div>
+    <div class="toggle-row" style="margin-bottom:10px">
+      <div>
+        <div style="font-size:13px">Включить фоновую музыку</div>
+        <div style="font-size:11px;color:var(--text2)">Музыка установлена администратором</div>
+      </div>
+      <label class="toggle-sw"><input type="checkbox" id="setting-music-enabled" onchange="toggleMusic()"><span class="toggle-knob"></span></label>
+    </div>
+    <div id="music-volume-row" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Громкость</div>
+      <input type="range" id="music-volume" min="0" max="100" value="50" style="width:100%;accent-color:var(--accent)" oninput="setMusicVolume(this.value)">
+    </div>
+    <div id="music-no-url" style="font-size:12px;color:var(--text2)">Музыка ещё не добавлена администратором</div>
+  </div>
+
   <div class="settings-section" id="autobuy-section" style="display:none">
     <div class="settings-title">🤖 Авто-покупка VPN <span class="tag tag-yellow" style="font-size:10px;padding:2px 7px;margin-left:4px">👑 Premium</span></div>
     <div class="toggle-row">
@@ -684,6 +700,8 @@ select.form-input { cursor:pointer; }
     <button class="admin-tab" onclick="switchAdminTab('logs')">📋 Логи</button>
     <button class="admin-tab" onclick="switchAdminTab('achievements')">🏆 Ачивки</button>
     <button class="admin-tab" onclick="switchAdminTab('news')">📰 Новости</button>
+    <button class="admin-tab" onclick="switchAdminTab('coins')">🪙 Монеты</button>
+    <button class="admin-tab" onclick="switchAdminTab('music')">🎵 Музыка</button>
   </div>
 
   <div id="admin-tab-vpn">
@@ -766,6 +784,54 @@ select.form-input { cursor:pointer; }
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddNewsModal()">➕ Добавить новость</button>
     <div id="admin-news-list"><div class="loader"><div class="spinner"></div></div></div>
   </div>
+
+  <div id="admin-tab-coins" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddCoinModal()">➕ Создать монету</button>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Цена рассчитывается: base_price + increment × купленных монет. При покупке N штук сумма считается как N последовательных покупок.</div>
+    <div id="admin-coins-list"><div class="loader"><div class="spinner"></div></div></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">🎁 Выдать монеты игроку</div>
+      <div class="form-group"><label class="form-label">Telegram ID игрока</label><input class="form-input" type="number" id="give-coin-target-id" placeholder="ID пользователя"></div>
+      <div class="form-group"><label class="form-label">Монета</label>
+        <select class="form-input" id="give-coin-select"><option value="">— выберите монету —</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Количество</label><input class="form-input" type="number" id="give-coin-amount" placeholder="100" min="1"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="adminGiveCoin()">Выдать</button>
+    </div>
+  </div>
+
+  <div id="admin-tab-music" style="display:none">
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">🎵 Фоновая музыка</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Укажите прямую ссылку на mp3/ogg/aac файл. Эта музыка будет доступна всем пользователям.</div>
+      <div class="form-group"><label class="form-label">URL музыкального файла</label><input class="form-input" id="admin-music-url" placeholder="https://example.com/music.mp3"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="adminSaveMusic()">💾 Сохранить</button>
+      <div id="admin-music-current" style="font-size:11px;color:var(--text2);margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EXCHANGE PAGE -->
+<div id="page-exchange" class="page">
+  <div class="header"><h1>📈 Биржа</h1></div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="btn btn-primary" style="flex:1" onclick="switchExTab('market')" id="extab-market">🏪 Рынок</button>
+    <button class="btn btn-outline" style="flex:1" onclick="switchExTab('portfolio')" id="extab-portfolio">💼 Портфель</button>
+    <button class="btn btn-outline" style="flex:1" onclick="switchExTab('trades')" id="extab-trades">🤝 Сделки</button>
+  </div>
+  <div id="exchange-market">
+    <div id="exchange-coins-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+  <div id="exchange-portfolio" style="display:none">
+    <div id="exchange-portfolio-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+  <div id="exchange-trades" style="display:none">
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openTradeCreateModal()">➕ Создать предложение</button>
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px">📥 Входящие</div>
+    <div id="exchange-incoming-trades"></div>
+    <div style="font-size:13px;font-weight:700;margin:12px 0 8px">📤 Исходящие</div>
+    <div id="exchange-outgoing-trades"></div>
+  </div>
 </div>
 
 <!-- NAV -->
@@ -773,6 +839,7 @@ select.form-input { cursor:pointer; }
   <button class="nav-btn active" onclick="navigate('clicker')" id="nav-clicker"><span class="icon">🖱</span><span>Кликер</span></button>
   <button class="nav-btn" onclick="navigate('shop')"    id="nav-shop">   <span class="icon">🛒</span><span>Магазин</span></button>
   <button class="nav-btn" onclick="openCasinoHubModal()" id="nav-roulette"><span class="icon">🎰</span><span>Казино</span></button>
+  <button class="nav-btn" onclick="navigate('exchange')" id="nav-exchange"><span class="icon">📈</span><span>Биржа</span></button>
   <button class="nav-btn" onclick="navigate('vpn')"     id="nav-vpn">    <span class="icon">🔐</span><span>VPN</span></button>
   <button class="nav-btn" onclick="navigate('profile')" id="nav-profile"><span class="icon">👤</span><span>Профиль</span></button>
   <button class="nav-btn" onclick="navigate('settings')"id="nav-settings"><span class="icon">⚙️</span><span>Настройки</span></button>
@@ -955,6 +1022,17 @@ select.form-input { cursor:pointer; }
       </select>
     </div>
     <div class="form-group"><label class="form-label">Значение условия (число или ID скина)</label><input class="form-input" id="ach-cval" placeholder="0"></div>
+    <div class="form-group">
+      <label class="form-label">Награда (тип)</label>
+      <select class="form-input" id="ach-reward-type">
+        <option value="">— без награды —</option>
+        <option value="clicks">💰 Клики (баланс)</option>
+        <option value="auto_clicks">🤖 Авто-клики/сек</option>
+        <option value="clicks_per_click">🖱 Кликов за нажатие</option>
+        <option value="click_multiplier">✖️ Множитель к нажатиям</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Размер награды</label><input class="form-input" type="number" id="ach-reward-value" placeholder="0" min="0" step="0.1"></div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-ach')">Отмена</button>
       <button class="btn btn-primary" style="flex:1" onclick="submitAchForm()">Сохранить</button>
@@ -1193,10 +1271,14 @@ async function init() {
   initBgEffects();
   initSettings();
 
-  let tgId = 100000001, username = null, firstName = 'Test';
+  let tgId = null, username = null, firstName = 'Пользователь';
   if (tg?.initDataUnsafe?.user) {
     const u = tg.initDataUnsafe.user;
     tgId = u.id; username = u.username; firstName = u.first_name;
+  }
+  if (!tgId) {
+    document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f0f1a;color:#e2e8f0;padding:32px;text-align:center;gap:16px"><div style="font-size:48px">🔒</div><div style="font-size:20px;font-weight:700">Только для Telegram</div><div style="font-size:14px;color:#94a3b8">Открывайте это приложение через кнопку в боте Telegram</div></div>`;
+    return;
   }
   try {
     const res = await fetch(`/api/user/${tgId}?username=${username||''}&first_name=${encodeURIComponent(firstName||'')}`);
@@ -1204,6 +1286,8 @@ async function init() {
     S.user = data; S.balance = data.balance; S.totalClicks = data.total_clicks;
     S.cpc = data.clicks_per_click; S.acps = data.auto_clicks_per_second || 0;
     S.isPremium = data.is_premium;
+    S.userMult = data.click_multiplier || 1.0;
+    initMusic();
     fetch('/api/promotions').then(r=>r.json()).then(promos => {
       const clickMults = promos.filter(p => p.promo_type === 'click_mult').map(p => p.value);
       S.clickMult = clickMults.length ? Math.max(...clickMults) : 1;
@@ -1266,7 +1350,8 @@ async function init() {
 function getEffectiveCpc() {
   let cpc = S.cpc;
   if (S.isPremium) cpc = Math.max(Math.round(cpc * 1.1), cpc + 1);
-  cpc = Math.round(cpc * S.clickMult);
+  const totalMult = (S.clickMult || 1) * (S.userMult || 1);
+  cpc = Math.round(cpc * totalMult);
   return cpc;
 }
 
@@ -1317,6 +1402,8 @@ function navigate(page) {
     }
   }
   if (page === 'admin')   { switchAdminTab('vpn'); }
+  if (page === 'exchange') { loadExchange(); }
+  if (page === 'settings') { initMusicUI(); }
 }
 
 // ══ CLICKER (rate limit: max 10/sec) ══
@@ -2904,7 +2991,7 @@ async function loadPromos() {
 let curAdminTab = 'vpn';
 function switchAdminTab(tab) {
   curAdminTab = tab;
-  ['vpn','upgrades','users','balance','promos','promoCodes','logs','achievements','news'].forEach(t => {
+  ['vpn','upgrades','users','balance','promos','promoCodes','logs','achievements','news','coins','music'].forEach(t => {
     const el = document.getElementById(`admin-tab-${t}`);
     if (el) el.style.display = t===tab?'block':'none';
   });
@@ -2920,6 +3007,8 @@ function switchAdminTab(tab) {
   if (tab==='promoCodes')   loadAdminPromoCodes();
   if (tab==='logs')         loadAdminLogs();
   if (tab==='achievements') loadAdminAchievements();
+  if (tab==='coins') loadAdminCoins();
+  if (tab==='music') loadAdminMusic();
   if (tab==='news')         loadAdminNews();
 }
 
@@ -3956,16 +4045,19 @@ async function loadAdminAchievements() {
       all_themes_tried:'тем ≥', login_days_gte:'дней ≥', login_streak_gte:'стрик ≥',
       autoclk_gte:'авто/сек ≥', manual:'вручную'
     };
+    const rewardLabels = { clicks:'💰 Клики', auto_clicks:'🤖 Авто/сек', clicks_per_click:'🖱 Клики/тап', click_multiplier:'✖️ Множитель' };
     c.innerHTML = list.map(a => {
       const st = a.is_active ? '<span class="tag tag-green">Активна</span>' : '<span class="tag tag-red">Выкл</span>';
       const cond = `${ctypeLabels[a.condition_type]||a.condition_type} ${a.condition_value}`;
+      const rewardTag = a.reward_type && a.reward_value ? `<div style="font-size:11px;color:var(--green);margin-bottom:8px">🎁 Награда: ${rewardLabels[a.reward_type]||a.reward_type} +${a.reward_value}</div>` : '';
       return `<div class="card">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <span style="font-size:22px">${a.icon}</span>
           <div style="flex:1"><div style="font-weight:700">${a.name}</div><div style="font-size:11px;color:var(--text2)">${a.description||''}</div></div>
           ${st}
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Условие: <code>${cond}</code></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Условие: <code>${cond}</code></div>
+        ${rewardTag}
         <div style="display:flex;gap:6px">
           <button class="btn btn-outline btn-sm" style="flex:1" onclick="editAchModal(${JSON.stringify(a).replace(/"/g,'&quot;')})">✏️ Изменить</button>
           <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteAchievement(${a.id})">🗑 Удалить</button>
@@ -3983,6 +4075,8 @@ function openAddAchModal() {
   document.getElementById('ach-desc').value = '';
   document.getElementById('ach-ctype').value = 'total_clicks_gte';
   document.getElementById('ach-cval').value = '0';
+  document.getElementById('ach-reward-type').value = '';
+  document.getElementById('ach-reward-value').value = '0';
   openModal('modal-ach');
 }
 
@@ -3994,19 +4088,25 @@ function editAchModal(a) {
   document.getElementById('ach-desc').value = a.description || '';
   document.getElementById('ach-ctype').value = a.condition_type;
   document.getElementById('ach-cval').value = a.condition_value;
+  document.getElementById('ach-reward-type').value = a.reward_type || '';
+  document.getElementById('ach-reward-value').value = a.reward_value || '0';
   openModal('modal-ach');
 }
 
 async function submitAchForm() {
   if (!S.user) return;
   const editId = document.getElementById('ach-edit-id').value;
+  const rewardType = document.getElementById('ach-reward-type').value;
+  const rewardValue = parseFloat(document.getElementById('ach-reward-value').value) || 0;
   const body = {
     admin_telegram_id: S.user.telegram_id,
     icon: document.getElementById('ach-icon').value.trim() || '🏆',
     name: document.getElementById('ach-name').value.trim(),
     description: document.getElementById('ach-desc').value.trim(),
     condition_type: document.getElementById('ach-ctype').value,
-    condition_value: document.getElementById('ach-cval').value.trim() || '0'
+    condition_value: document.getElementById('ach-cval').value.trim() || '0',
+    reward_type: rewardType || null,
+    reward_value: rewardValue
   };
   if (!body.name) { showToast('❌ Введите название', 'error'); return; }
   try {
@@ -4185,6 +4285,500 @@ function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `toast ${type} show`;
   clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ══ MUSIC ══
+let _bgAudio = null;
+let _musicUrl = '';
+
+async function initMusic() {
+  try {
+    const data = await fetch('/api/music').then(r=>r.json());
+    _musicUrl = data.url || '';
+    const noUrlEl = document.getElementById('music-no-url');
+    const volRow = document.getElementById('music-volume-row');
+    const toggleEl = document.getElementById('setting-music-enabled');
+    if (_musicUrl) {
+      if (noUrlEl) noUrlEl.style.display = 'none';
+      if (volRow) volRow.style.display = 'block';
+      const saved = localStorage.getItem('music_enabled');
+      if (saved === 'true' && toggleEl) {
+        toggleEl.checked = true;
+        playMusic();
+      }
+    } else {
+      if (noUrlEl) noUrlEl.style.display = 'block';
+      if (volRow) volRow.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+function initMusicUI() {
+  const toggleEl = document.getElementById('setting-music-enabled');
+  const volEl = document.getElementById('music-volume');
+  if (toggleEl) toggleEl.checked = localStorage.getItem('music_enabled') === 'true';
+  if (volEl) volEl.value = parseInt(localStorage.getItem('music_volume') || '50');
+  if (!_musicUrl) {
+    const noUrlEl = document.getElementById('music-no-url');
+    const volRow = document.getElementById('music-volume-row');
+    if (noUrlEl) noUrlEl.style.display = 'block';
+    if (volRow) volRow.style.display = 'none';
+  }
+}
+
+function playMusic() {
+  if (!_musicUrl) return;
+  if (!_bgAudio) {
+    _bgAudio = new Audio(_musicUrl);
+    _bgAudio.loop = true;
+    _bgAudio.volume = (parseInt(localStorage.getItem('music_volume') || '50')) / 100;
+  }
+  _bgAudio.play().catch(() => {});
+}
+
+function toggleMusic() {
+  const on = document.getElementById('setting-music-enabled')?.checked;
+  localStorage.setItem('music_enabled', on ? 'true' : 'false');
+  if (on) { playMusic(); }
+  else { if (_bgAudio) { _bgAudio.pause(); } }
+}
+
+function setMusicVolume(val) {
+  localStorage.setItem('music_volume', val);
+  if (_bgAudio) _bgAudio.volume = val / 100;
+}
+
+// ── Admin Music ──
+async function loadAdminMusic() {
+  try {
+    const data = await fetch('/api/music').then(r=>r.json());
+    const el = document.getElementById('admin-music-url');
+    const cur = document.getElementById('admin-music-current');
+    if (el) el.value = data.url || '';
+    if (cur) cur.textContent = data.url ? `Текущий URL: ${data.url}` : 'Музыка не установлена';
+  } catch(e) {}
+}
+
+async function adminSaveMusic() {
+  if (!S.user) return;
+  const url = document.getElementById('admin-music-url')?.value?.trim() || '';
+  try {
+    const r = await fetch('/api/admin/music', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({admin_telegram_id: S.user.telegram_id, url})
+    }).then(r=>r.json());
+    if (r.ok) {
+      _musicUrl = url;
+      _bgAudio = null;
+      showToast('✅ Музыка сохранена', 'success');
+      const cur = document.getElementById('admin-music-current');
+      if (cur) cur.textContent = url ? `Текущий URL: ${url}` : 'Музыка не установлена';
+    } else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ══ EXCHANGE ══
+let _exCoins = [];
+let _exUserCoins = {};
+
+function switchExTab(tab) {
+  ['market','portfolio','trades'].forEach(t => {
+    document.getElementById(`exchange-${t}`).style.display = t===tab ? 'block' : 'none';
+    document.getElementById(`extab-${t}`).className = t===tab ? 'btn btn-primary' : 'btn btn-outline';
+  });
+  if (tab === 'portfolio') loadPortfolio();
+  if (tab === 'trades') loadTrades();
+}
+
+async function loadExchange() {
+  await Promise.all([loadMarket(), loadUserCoinsCache()]);
+}
+
+async function loadUserCoinsCache() {
+  if (!S.user) return;
+  try {
+    const list = await fetch(`/api/exchange/coins/${S.user.telegram_id}`).then(r=>r.json());
+    _exUserCoins = {};
+    list.forEach(uc => { _exUserCoins[uc.coin_id] = uc.amount; });
+  } catch(e) {}
+}
+
+async function loadMarket() {
+  if (!S.user) return;
+  const c = document.getElementById('exchange-coins-list');
+  if (!c) return;
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const coins = await fetch('/api/exchange/coins').then(r=>r.json());
+    _exCoins = coins;
+    if (!coins.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🪙</div>Монет нет</div>'; return; }
+    c.innerHTML = coins.map(coin => {
+      const owned = _exUserCoins[coin.id] || 0;
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:28px">${coin.icon}</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:15px">${coin.name} <span style="color:var(--text2);font-size:12px">${coin.symbol}</span></div>
+            <div style="font-size:11px;color:var(--text2)">${coin.description||''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:700;color:var(--yellow)">💰 ${Math.round(coin.current_price)}</div>
+            <div style="font-size:10px;color:var(--text2)">за монету</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-blue">🏦 ${coin.available_supply.toLocaleString('ru')} / ${coin.total_supply.toLocaleString('ru')}</span>
+          ${owned > 0 ? `<span class="tag tag-green">У вас: ${owned.toLocaleString('ru')}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Цена растёт на ${coin.price_increment} кл. за каждую купленную монету</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="openBuyCoinModal(${coin.id})">🛒 Купить</button>
+          ${owned > 0 ? `<button class="btn btn-outline btn-sm" style="flex:1" onclick="openSellCoinModal(${coin.id})">💸 Продать</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+async function loadPortfolio() {
+  if (!S.user) return;
+  const c = document.getElementById('exchange-portfolio-list');
+  if (!c) return;
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const list = await fetch(`/api/exchange/coins/${S.user.telegram_id}`).then(r=>r.json());
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">💼</div>Нет монет</div>'; return; }
+    c.innerHTML = list.map(uc => {
+      const coin = uc.coin;
+      const sellVal = calcSellRevenue(coin.current_price, coin.price_increment, Math.floor(uc.amount));
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:26px">${coin.icon}</span>
+          <div style="flex:1">
+            <div style="font-weight:700">${coin.name} (${coin.symbol})</div>
+            <div style="font-size:13px;color:var(--yellow)">Кол-во: <b>${uc.amount.toLocaleString('ru')}</b></div>
+            <div style="font-size:11px;color:var(--text2)">Текущая цена: ${Math.round(coin.current_price)} кл.</div>
+            <div style="font-size:11px;color:var(--green)">Продать за ≈ ${Math.round(sellVal).toLocaleString('ru')} кл.</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="openSellCoinModal(${coin.id})">💸 Продать</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function calcBuyCost(currentPrice, increment, amount) {
+  return amount * currentPrice + increment * amount * (amount - 1) / 2;
+}
+function calcSellRevenue(currentPrice, increment, amount) {
+  return Math.max(0, amount * (currentPrice - increment) - increment * amount * (amount - 1) / 2);
+}
+
+// ── Buy/Sell modals (inline prompt-style) ──
+async function openBuyCoinModal(coinId) {
+  const coin = _exCoins.find(c => c.id === coinId);
+  if (!coin) return;
+  const amtStr = prompt(`🛒 Покупка ${coin.name} (${coin.symbol})\nТекущая цена: ${Math.round(coin.current_price)} кл.\nСколько купить? (1 - ${coin.available_supply.toLocaleString('ru')})`);
+  if (!amtStr) return;
+  const amt = parseInt(amtStr);
+  if (!amt || amt < 1) { showToast('❌ Неверное количество', 'error'); return; }
+  const cost = calcBuyCost(coin.current_price, coin.price_increment, amt);
+  if (!confirm(`Купить ${amt} ${coin.symbol} за ${Math.round(cost).toLocaleString('ru')} кликов?`)) return;
+  try {
+    const r = await fetch(`/api/exchange/buy/${S.user.telegram_id}/${coinId}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({amount: amt})
+    }).then(r=>r.json());
+    if (r.ok) {
+      S.balance = r.new_balance; updateBalanceUI();
+      showToast(`✅ Куплено ${amt} ${coin.symbol}`, 'success');
+      await loadExchange();
+    } else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+async function openSellCoinModal(coinId) {
+  const coin = _exCoins.find(c => c.id === coinId);
+  const owned = _exUserCoins[coinId] || 0;
+  if (!coin || !owned) { showToast('❌ Нет монет для продажи', 'error'); return; }
+  const amtStr = prompt(`💸 Продажа ${coin.name} (${coin.symbol})\nВаш баланс: ${owned.toLocaleString('ru')} монет\nСколько продать?`);
+  if (!amtStr) return;
+  const amt = parseInt(amtStr);
+  if (!amt || amt < 1 || amt > owned) { showToast('❌ Неверное количество', 'error'); return; }
+  const rev = calcSellRevenue(coin.current_price, coin.price_increment, amt);
+  if (!confirm(`Продать ${amt} ${coin.symbol} за ≈ ${Math.round(rev).toLocaleString('ru')} кликов?`)) return;
+  try {
+    const r = await fetch(`/api/exchange/sell/${S.user.telegram_id}/${coinId}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({amount: amt})
+    }).then(r=>r.json());
+    if (r.ok) {
+      S.balance = r.new_balance; updateBalanceUI();
+      showToast(`✅ Продано ${amt} ${coin.symbol}`, 'success');
+      await loadExchange();
+    } else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ── Trades ──
+async function loadTrades() {
+  if (!S.user) return;
+  const [incEl, outEl] = ['exchange-incoming-trades', 'exchange-outgoing-trades'].map(id => document.getElementById(id));
+  try {
+    const data = await fetch(`/api/exchange/trade/list/${S.user.telegram_id}`).then(r=>r.json());
+    const coinName = id => { const c = _exCoins.find(c=>c.id===id); return c ? `${c.icon}${c.symbol}` : `#${id}`; };
+    const renderItems = (coins, clicks) => {
+      const parts = [];
+      if (clicks > 0) parts.push(`💰 ${Math.round(clicks).toLocaleString('ru')} кл.`);
+      coins.forEach(sc => parts.push(`${coinName(sc.coin_id)} ×${sc.amount}`));
+      return parts.join(', ') || '—';
+    };
+    if (incEl) {
+      if (!data.incoming.length) { incEl.innerHTML='<div style="font-size:12px;color:var(--text2);padding:8px">Нет входящих предложений</div>'; }
+      else incEl.innerHTML = data.incoming.map(t => `<div class="card">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">От: <b>${escHtml(t.sender_name||t.sender_telegram_id)}</b></div>
+        <div style="font-size:12px;margin-bottom:4px">Он отдаёт: <span style="color:var(--green)">${renderItems(t.sender_coins, t.sender_clicks)}</span></div>
+        <div style="font-size:12px;margin-bottom:8px">Вы отдаёте: <span style="color:var(--red)">${renderItems(t.receiver_coins, t.receiver_clicks)}</span> <span style="color:var(--text2)">(+5% комиссия)</span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-success btn-sm" style="flex:1" onclick="respondTrade(${t.id},'accept')">✅ Принять</button>
+          <button class="btn btn-danger btn-sm" style="flex:1" onclick="respondTrade(${t.id},'reject')">❌ Отклонить</button>
+        </div>
+      </div>`).join('');
+    }
+    if (outEl) {
+      const statusLabels = {pending:'⏳ Ожидает',accepted:'✅ Принята',rejected:'❌ Отклонена',cancelled:'🚫 Отменена'};
+      if (!data.outgoing.length) { outEl.innerHTML='<div style="font-size:12px;color:var(--text2);padding:8px">Нет исходящих предложений</div>'; }
+      else outEl.innerHTML = data.outgoing.map(t => `<div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--text2)">Кому: <b>${escHtml(t.receiver_name||t.receiver_telegram_id)}</b></span>
+          <span class="tag tag-blue" style="font-size:10px">${statusLabels[t.status]||t.status}</span>
+        </div>
+        <div style="font-size:12px;margin-bottom:4px">Вы отдаёте: <span style="color:var(--red)">${renderItems(t.sender_coins, t.sender_clicks)}</span></div>
+        <div style="font-size:12px">Вы получаете: <span style="color:var(--green)">${renderItems(t.receiver_coins, t.receiver_clicks)}</span></div>
+        ${t.status==='pending' ? `<button class="btn btn-danger btn-sm" style="width:100%;margin-top:8px" onclick="respondTrade(${t.id},'reject')">🚫 Отменить</button>` : ''}
+      </div>`).join('');
+    }
+  } catch(e) { if (incEl) incEl.innerHTML='<div>Ошибка</div>'; }
+}
+
+async function respondTrade(tradeId, action) {
+  if (!S.user) return;
+  if (action === 'accept' && !confirm('Принять сделку? Ваши монеты/клики будут списаны + 5% комиссия.')) return;
+  try {
+    const r = await fetch(`/api/exchange/trade/${action}/${tradeId}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({telegram_id: S.user.telegram_id})
+    }).then(r=>r.json());
+    if (r.ok) {
+      showToast(action==='accept' ? '✅ Сделка принята' : '❌ Сделка отклонена', action==='accept'?'success':'');
+      await loadExchange();
+      loadTrades();
+    } else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ── Create Trade ──
+let _tradeOffer = { senderCoins:[], receiverCoins:[], senderClicks:0, receiverClicks:0 };
+
+function openTradeCreateModal() {
+  if (!_exCoins.length) { showToast('Загрузите рынок сначала', ''); loadMarket(); return; }
+  const myCoins = Object.entries(_exUserCoins).filter(([,amt]) => amt > 0);
+  const coinOptions = _exCoins.map(c => `<option value="${c.id}">${c.icon} ${c.name} (${c.symbol})</option>`).join('');
+  const myOptions = myCoins.map(([id, amt]) => {
+    const c = _exCoins.find(x=>x.id==id);
+    return c ? `<option value="${c.id}">${c.icon} ${c.name} — у вас: ${amt}</option>` : '';
+  }).join('');
+  const html = `<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Создать предложение обмена. Ваши активы резервируются до ответа.</div>
+    <div class="form-group"><label class="form-label">Кому (@username или ID)</label><input class="form-input" id="trade-receiver" placeholder="@username или 123456789"></div>
+    <div style="font-weight:700;font-size:13px;margin-bottom:6px">Вы отдаёте:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <select class="form-input" id="trade-s-coin">${myOptions||'<option value="">— нет монет —</option>'}</select>
+      <input class="form-input" type="number" id="trade-s-coin-amt" placeholder="кол-во" min="1">
+    </div>
+    <div class="form-group"><label class="form-label">Кликов (или 0)</label><input class="form-input" type="number" id="trade-s-clicks" placeholder="0" value="0" min="0"></div>
+    <div style="font-weight:700;font-size:13px;margin:8px 0 6px">Вы хотите получить:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <select class="form-input" id="trade-r-coin">${coinOptions}</select>
+      <input class="form-input" type="number" id="trade-r-coin-amt" placeholder="кол-во" min="1">
+    </div>
+    <div class="form-group"><label class="form-label">Кликов (или 0)</label><input class="form-input" type="number" id="trade-r-clicks" placeholder="0" value="0" min="0"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-trade-create')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitTradeOffer()">📤 Отправить</button>
+    </div>`;
+  let modal = document.getElementById('modal-trade-create');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal-overlay'; modal.id = 'modal-trade-create';
+    modal.innerHTML = `<div class="modal"><div class="modal-handle"></div><div class="modal-title">🤝 Новая сделка</div><div id="trade-create-body"></div></div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target===modal) closeModal('modal-trade-create'); });
+  }
+  document.getElementById('trade-create-body').innerHTML = html;
+  openModal('modal-trade-create');
+}
+
+async function submitTradeOffer() {
+  if (!S.user) return;
+  const receiver = document.getElementById('trade-receiver')?.value?.trim();
+  if (!receiver) { showToast('❌ Укажите получателя', 'error'); return; }
+  const sCoinId = parseInt(document.getElementById('trade-s-coin')?.value) || 0;
+  const sCoinAmt = parseFloat(document.getElementById('trade-s-coin-amt')?.value) || 0;
+  const sClicks = parseFloat(document.getElementById('trade-s-clicks')?.value) || 0;
+  const rCoinId = parseInt(document.getElementById('trade-r-coin')?.value) || 0;
+  const rCoinAmt = parseFloat(document.getElementById('trade-r-coin-amt')?.value) || 0;
+  const rClicks = parseFloat(document.getElementById('trade-r-clicks')?.value) || 0;
+  const senderCoins = (sCoinId && sCoinAmt > 0) ? [{coin_id: sCoinId, amount: sCoinAmt}] : [];
+  const receiverCoins = (rCoinId && rCoinAmt > 0) ? [{coin_id: rCoinId, amount: rCoinAmt}] : [];
+  if (!senderCoins.length && sClicks <= 0) { showToast('❌ Укажите, что вы отдаёте', 'error'); return; }
+  if (!receiverCoins.length && rClicks <= 0) { showToast('❌ Укажите, что вы хотите получить', 'error'); return; }
+  try {
+    const r = await fetch(`/api/exchange/trade/create/${S.user.telegram_id}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({receiver_query:receiver, sender_coins:senderCoins, receiver_coins:receiverCoins, sender_clicks:sClicks, receiver_clicks:rClicks})
+    }).then(r=>r.json());
+    if (r.ok) {
+      showToast(`✅ Сделка #${r.trade_id} отправлена игроку ${r.receiver_name}`, 'success');
+      closeModal('modal-trade-create');
+      await loadExchange();
+      loadTrades();
+    } else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+// ── Admin: Coins ──
+async function loadAdminCoins() {
+  if (!S.user) return;
+  const c = document.getElementById('admin-coins-list');
+  if (!c) return;
+  c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const list = await fetch(`/api/admin/coins/${S.user.telegram_id}`).then(r=>r.json());
+    // Populate give-coin select
+    const sel = document.getElementById('give-coin-select');
+    if (sel) sel.innerHTML = '<option value="">— выберите монету —</option>' + list.map(co=>`<option value="${co.id}">${co.icon} ${co.name} (${co.symbol})</option>`).join('');
+    if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🪙</div>Монет нет</div>'; return; }
+    c.innerHTML = list.map(co => {
+      const st = co.is_active ? '<span class="tag tag-green">Активна</span>' : '<span class="tag tag-red">Выкл</span>';
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:24px">${co.icon}</span>
+          <div style="flex:1">
+            <div style="font-weight:700">${co.name} <span style="color:var(--text2);font-size:12px">${co.symbol}</span></div>
+            <div style="font-size:11px;color:var(--text2)">${co.description||''}</div>
+          </div>${st}
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="tag tag-yellow">💰 ${co.current_price}</span>
+          <span class="tag tag-blue">📦 ${co.available_supply}/${co.total_supply}</span>
+          <span class="tag tag-blue">+${co.price_increment}/монета</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-edit btn-sm" style="flex:1" onclick="openEditCoinModal(${JSON.stringify(co).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="adminToggleCoin(${co.id})">${co.is_active?'❌ Выкл':'✅ Вкл'}</button>
+          <button class="btn btn-del btn-sm" onclick="adminDeleteCoin(${co.id})">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function openAddCoinModal() {
+  const html = `<div class="form-group"><label class="form-label">Название</label><input class="form-input" id="coin-name" placeholder="BitClick"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label class="form-label">Символ (тикер)</label><input class="form-input" id="coin-symbol" placeholder="BTC" maxlength="10"></div>
+      <div class="form-group"><label class="form-label">Иконка</label><input class="form-input" id="coin-icon" placeholder="🪙" maxlength="4" value="🪙"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Описание</label><input class="form-input" id="coin-desc" placeholder="Описание монеты"></div>
+    <div class="form-group"><label class="form-label">Всего монет</label><input class="form-input" type="number" id="coin-supply" placeholder="1000000" value="1000000" min="1"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label class="form-label">Начальная цена (кл.)</label><input class="form-input" type="number" id="coin-base-price" placeholder="1" value="1" min="0.01" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Рост цены за 1 монету</label><input class="form-input" type="number" id="coin-increment" placeholder="1" value="1" min="0" step="0.001"></div>
+    </div>
+    <input type="hidden" id="coin-edit-id">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-coin-edit')">Отмена</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitCoinForm()">Сохранить</button>
+    </div>`;
+  let modal = document.getElementById('modal-coin-edit');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal-overlay'; modal.id = 'modal-coin-edit';
+    modal.innerHTML = `<div class="modal"><div class="modal-handle"></div><div class="modal-title" id="modal-coin-title">Добавить монету</div><div id="coin-edit-body"></div></div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target===modal) closeModal('modal-coin-edit'); });
+  }
+  document.getElementById('modal-coin-title').textContent = 'Добавить монету';
+  document.getElementById('coin-edit-body').innerHTML = html;
+  document.getElementById('coin-edit-id').value = '';
+  openModal('modal-coin-edit');
+}
+
+function openEditCoinModal(co) {
+  openAddCoinModal();
+  document.getElementById('modal-coin-title').textContent = 'Редактировать монету';
+  document.getElementById('coin-edit-id').value = co.id;
+  document.getElementById('coin-name').value = co.name;
+  document.getElementById('coin-symbol').value = co.symbol;
+  document.getElementById('coin-icon').value = co.icon;
+  document.getElementById('coin-desc').value = co.description || '';
+  document.getElementById('coin-supply').value = co.total_supply;
+  document.getElementById('coin-base-price').value = co.base_price;
+  document.getElementById('coin-increment').value = co.price_increment;
+}
+
+async function submitCoinForm() {
+  if (!S.user) return;
+  const editId = document.getElementById('coin-edit-id')?.value;
+  const body = {
+    admin_telegram_id: S.user.telegram_id,
+    name: document.getElementById('coin-name')?.value?.trim(),
+    symbol: document.getElementById('coin-symbol')?.value?.trim()?.toUpperCase(),
+    icon: document.getElementById('coin-icon')?.value?.trim() || '🪙',
+    description: document.getElementById('coin-desc')?.value?.trim() || '',
+    total_supply: parseInt(document.getElementById('coin-supply')?.value) || 1000000,
+    base_price: parseFloat(document.getElementById('coin-base-price')?.value) || 1,
+    price_increment: parseFloat(document.getElementById('coin-increment')?.value) || 1,
+  };
+  if (!body.name || !body.symbol) { showToast('❌ Заполните название и символ', 'error'); return; }
+  try {
+    let url = '/api/admin/coins/create';
+    if (editId) { url = '/api/admin/coins/edit'; body.coin_id = parseInt(editId); }
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(r=>r.json());
+    if (r.ok) { showToast('✅ Сохранено', 'success'); closeModal('modal-coin-edit'); loadAdminCoins(); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+async function adminToggleCoin(id) {
+  if (!S.user) return;
+  try {
+    const r = await fetch('/api/admin/coins/toggle', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({admin_telegram_id:S.user.telegram_id, coin_id:id})}).then(r=>r.json());
+    if (r.ok) { showToast('✅ Изменено', 'success'); loadAdminCoins(); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+async function adminDeleteCoin(id) {
+  if (!S.user || !confirm('Удалить монету? Это удалит её у всех пользователей!')) return;
+  try {
+    const r = await fetch('/api/admin/coins/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({admin_telegram_id:S.user.telegram_id, coin_id:id})}).then(r=>r.json());
+    if (r.ok) { showToast('✅ Удалено', 'success'); loadAdminCoins(); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
+}
+
+async function adminGiveCoin() {
+  if (!S.user) return;
+  const targetId = parseInt(document.getElementById('give-coin-target-id')?.value);
+  const coinId = parseInt(document.getElementById('give-coin-select')?.value);
+  const amount = parseFloat(document.getElementById('give-coin-amount')?.value) || 0;
+  if (!targetId || !coinId || amount <= 0) { showToast('❌ Заполните все поля', 'error'); return; }
+  try {
+    const r = await fetch('/api/admin/coins/give', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({admin_telegram_id:S.user.telegram_id, target_telegram_id:targetId, coin_id:coinId, amount})}).then(r=>r.json());
+    if (r.ok) { showToast(`✅ Монеты выданы игроку ${targetId}`, 'success'); }
+    else showToast('❌ ' + (r.error||'Ошибка'), 'error');
+  } catch(e) { showToast('❌ Ошибка', 'error'); }
 }
 
 // ══ START ══

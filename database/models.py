@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Float,
-    ForeignKey, Integer, String, Text
+    ForeignKey, Integer, String, Text, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -49,12 +49,15 @@ class User(Base):
     news_notify_enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
 
+    click_multiplier = Column(Float, default=1.0, nullable=False)
+
     upgrades = relationship("UserUpgrade", back_populates="user")
     vpn_purchases = relationship("VPNPurchase", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user", cascade="all, delete-orphan")
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
     owned_avatars = relationship("UserAvatar", back_populates="user", cascade="all, delete-orphan")
     api_key = relationship("ApiKey", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    user_coins = relationship("UserCoin", back_populates="user", cascade="all, delete-orphan")
 
 
 class ClickUpgrade(Base):
@@ -158,6 +161,8 @@ class Achievement(Base):
     icon = Column(String(20), default="🏆", nullable=False)
     condition_type = Column(String(50), nullable=False)
     condition_value = Column(Text, default="0", nullable=False)
+    reward_type = Column(String(30), nullable=True)   # clicks | auto_clicks | clicks_per_click | click_multiplier
+    reward_value = Column(Float, default=0.0, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
 
@@ -262,3 +267,55 @@ class News(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     notify_sent = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
+
+
+# ── Exchange (Биржа) ───────────────────────────────────────────
+
+class Coin(Base):
+    __tablename__ = "coins"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False, unique=True)
+    icon = Column(String(20), default="🪙", nullable=False)
+    description = Column(Text, nullable=True)
+    total_supply = Column(Integer, nullable=False, default=1000000)
+    available_supply = Column(Integer, nullable=False, default=1000000)
+    base_price = Column(Float, nullable=False, default=1.0)
+    price_increment = Column(Float, nullable=False, default=1.0)
+    current_price = Column(Float, nullable=False, default=1.0)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
+
+    user_coins = relationship("UserCoin", back_populates="coin", cascade="all, delete-orphan")
+
+
+class UserCoin(Base):
+    __tablename__ = "user_coins"
+    __table_args__ = (UniqueConstraint("user_id", "coin_id"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    coin_id = Column(Integer, ForeignKey("coins.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Float, default=0.0, nullable=False)
+
+    user = relationship("User", back_populates="user_coins")
+    coin = relationship("Coin", back_populates="user_coins")
+
+
+class TradeOffer(Base):
+    __tablename__ = "trade_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), default="pending", nullable=False)  # pending|accepted|rejected|cancelled
+    sender_coins = Column(Text, default="[]", nullable=False)   # JSON [{coin_id,amount}]
+    receiver_coins = Column(Text, default="[]", nullable=False) # JSON [{coin_id,amount}]
+    sender_clicks = Column(Float, default=0.0, nullable=False)
+    receiver_clicks = Column(Float, default=0.0, nullable=False)
+    created_at = Column(DateTime, default=now_msk, nullable=False)
+    updated_at = Column(DateTime, default=now_msk, nullable=False)
+
+    sender = relationship("User", foreign_keys=[sender_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])

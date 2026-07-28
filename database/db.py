@@ -12,9 +12,11 @@ def now_msk() -> datetime:
 from database.models import (
     Base, User, ClickUpgrade, UserUpgrade, VPNConfig, VPNPurchase,
     Promotion, UserActivityLog, Achievement, UserAchievement, AppSettings,
-    Avatar, UserAvatar, PromoCode, PromoCodeActivation, ApiKey, News
+    Avatar, UserAvatar, PromoCode, PromoCodeActivation, ApiKey, News,
+    Coin, UserCoin, TradeOffer
 )
 import secrets
+import json
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -24,6 +26,9 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         migrations = [
+            "ALTER TABLE achievements ADD COLUMN IF NOT EXISTS reward_type VARCHAR(30) DEFAULT NULL",
+            "ALTER TABLE achievements ADD COLUMN IF NOT EXISTS reward_value FLOAT DEFAULT 0.0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS click_multiplier FLOAT DEFAULT 1.0 NOT NULL",
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS upgrade_type VARCHAR(10) DEFAULT 'click' NOT NULL",
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS auto_click_bonus FLOAT DEFAULT 0.0 NOT NULL",
             "ALTER TABLE click_upgrades ADD COLUMN IF NOT EXISTS is_premium_only BOOLEAN DEFAULT FALSE NOT NULL",
@@ -944,7 +949,29 @@ async def check_and_unlock_achievements(telegram_id: int, client_state: dict) ->
             if unlocked:
                 ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
                 session.add(ua)
-                newly_unlocked.append({"id": ach.id, "name": ach.name, "icon": ach.icon})
+                # Apply reward
+                reward_desc = ""
+                if ach.reward_type and ach.reward_value:
+                    rv = ach.reward_value
+                    if ach.reward_type == "clicks":
+                        user.balance += rv
+                        if user.balance > user.max_balance:
+                            user.max_balance = user.balance
+                        reward_desc = f"+{int(rv)} кликов"
+                    elif ach.reward_type == "auto_clicks":
+                        user.auto_clicks_per_second += rv
+                        reward_desc = f"+{rv} авто-кликов/сек"
+                    elif ach.reward_type == "clicks_per_click":
+                        user.clicks_per_click += int(rv)
+                        reward_desc = f"+{int(rv)} кликов за тап"
+                    elif ach.reward_type == "click_multiplier":
+                        user.click_multiplier = round((user.click_multiplier or 1.0) + rv, 4)
+                        reward_desc = f"+{rv}x множитель"
+                newly_unlocked.append({
+                    "id": ach.id, "name": ach.name, "icon": ach.icon,
+                    "reward_type": ach.reward_type, "reward_value": ach.reward_value,
+                    "reward_desc": reward_desc
+                })
 
         if newly_unlocked:
             await session.commit()
@@ -959,17 +986,20 @@ async def admin_get_achievements() -> list:
             {
                 "id": a.id, "name": a.name, "description": a.description, "icon": a.icon,
                 "condition_type": a.condition_type, "condition_value": a.condition_value,
+                "reward_type": a.reward_type, "reward_value": a.reward_value,
                 "is_active": a.is_active, "created_at": a.created_at.isoformat()
             }
             for a in result.scalars().all()
         ]
 
 
-async def admin_add_achievement(name: str, description: str, icon: str, condition_type: str, condition_value: str) -> dict:
+async def admin_add_achievement(name: str, description: str, icon: str, condition_type: str,
+                                condition_value: str, reward_type: str = None, reward_value: float = 0.0) -> dict:
     async with async_session() as session:
         ach = Achievement(
             name=name, description=description, icon=icon,
-            condition_type=condition_type, condition_value=condition_value
+            condition_type=condition_type, condition_value=condition_value,
+            reward_type=reward_type or None, reward_value=reward_value or 0.0
         )
         session.add(ach)
         await session.commit()
@@ -1863,3 +1893,460 @@ async def get_users_news_notify() -> list:
             select(User.telegram_id).where(User.news_notify_enabled == True)
         )
         return [row[0] for row in result.all()]
+
+
+# ── Music Settings ─────────────────────────────────────────────
+
+async def get_music_url() -> str | None:
+    async with async_session() as session:
+        result = await session.execute(select(AppSettings).where(AppSettings.key == "music_url"))
+        setting = result.scalar_one_or_none()
+        return setting.value if setting else None
+
+
+async def set_music_url(url: str) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(AppSettings).where(AppSettings.key == "music_url"))
+        setting = result.scalar_one_or_none()
+        if setting:
+            setting.value = url
+        else:
+            setting = AppSettings(key="music_url", value=url)
+            session.add(setting)
+        await session.commit()
+        return {"ok": True}
+
+
+# ── Exchange (Биржа) ───────────────────────────────────────────
+
+def _coin_dict(c: Coin) -> dict:
+    return {
+        "id": c.id, "name": c.name, "symbol": c.symbol, "icon": c.icon,
+        "description": c.description, "total_supply": c.total_supply,
+        "available_supply": c.available_supply, "base_price": c.base_price,
+        "price_increment": c.price_increment, "current_price": c.current_price,
+        "is_active": c.is_active, "created_at": c.created_at.isoformat()
+    }
+
+
+async def get_active_coins() -> list:
+    async with async_session() as session:
+        result = await session.execute(
+            select(Coin).where(Coin.is_active == True).order_by(Coin.id)
+        )
+        return [_coin_dict(c) for c in result.scalars().all()]
+
+
+async def get_all_coins_admin() -> list:
+    async with async_session() as session:
+        result = await session.execute(select(Coin).order_by(Coin.id))
+        return [_coin_dict(c) for c in result.scalars().all()]
+
+
+async def admin_create_coin(name: str, symbol: str, icon: str, description: str,
+                            total_supply: int, base_price: float, price_increment: float) -> dict:
+    async with async_session() as session:
+        existing = await session.execute(select(Coin).where(Coin.symbol == symbol.upper()))
+        if existing.scalar_one_or_none():
+            return {"ok": False, "error": "Монета с таким символом уже существует"}
+        coin = Coin(
+            name=name, symbol=symbol.upper(), icon=icon or "🪙",
+            description=description, total_supply=total_supply,
+            available_supply=total_supply, base_price=base_price,
+            price_increment=price_increment, current_price=base_price
+        )
+        session.add(coin)
+        await session.commit()
+        await session.refresh(coin)
+        return {"ok": True, "id": coin.id}
+
+
+async def admin_edit_coin(coin_id: int, **kwargs) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(Coin).where(Coin.id == coin_id))
+        coin = result.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        for k, v in kwargs.items():
+            if hasattr(coin, k) and v is not None:
+                setattr(coin, k, v)
+        await session.commit()
+        return {"ok": True}
+
+
+async def admin_delete_coin(coin_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(Coin).where(Coin.id == coin_id))
+        coin = result.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        await session.delete(coin)
+        await session.commit()
+        return {"ok": True}
+
+
+async def admin_toggle_coin(coin_id: int) -> dict:
+    async with async_session() as session:
+        result = await session.execute(select(Coin).where(Coin.id == coin_id))
+        coin = result.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        coin.is_active = not coin.is_active
+        await session.commit()
+        return {"ok": True, "is_active": coin.is_active}
+
+
+async def admin_give_coin(admin_telegram_id: int, target_telegram_id: int,
+                          coin_id: int, amount: float) -> dict:
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == target_telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        coin_res = await session.execute(select(Coin).where(Coin.id == coin_id))
+        coin = coin_res.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        uc_res = await session.execute(
+            select(UserCoin).where(UserCoin.user_id == user.id, UserCoin.coin_id == coin_id)
+        )
+        uc = uc_res.scalar_one_or_none()
+        if uc:
+            uc.amount += amount
+        else:
+            uc = UserCoin(user_id=user.id, coin_id=coin_id, amount=amount)
+            session.add(uc)
+        await session.commit()
+        await add_user_log(user.id, target_telegram_id, "coin_give",
+                           f"Получено {amount} {coin.symbol} от администратора")
+        return {"ok": True}
+
+
+async def get_user_coins(telegram_id: int) -> list:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return []
+        result = await session.execute(
+            select(UserCoin, Coin).join(Coin).where(UserCoin.user_id == user.id)
+        )
+        return [
+            {"coin_id": uc.coin_id, "amount": uc.amount,
+             "coin": _coin_dict(c)}
+            for uc, c in result.all()
+        ]
+
+
+def _calc_buy_cost(coin: Coin, amount: int) -> float:
+    """Sum of prices for buying `amount` coins one by one (starting from current_price)."""
+    cp = coin.current_price
+    pi = coin.price_increment
+    # Sum = amount * cp + pi * amount*(amount-1)/2
+    return round(amount * cp + pi * amount * (amount - 1) / 2, 4)
+
+
+def _calc_sell_revenue(coin: Coin, amount: int) -> float:
+    """Revenue from selling `amount` coins: prices go DOWN as you sell."""
+    cp = coin.current_price
+    pi = coin.price_increment
+    # First coin sells at cp-pi, second at cp-2*pi, etc.
+    # Rev = amount*(cp-pi) - pi*amount*(amount-1)/2
+    revenue = amount * (cp - pi) - pi * amount * (amount - 1) / 2
+    return round(max(revenue, 0.0), 4)
+
+
+async def buy_coins(telegram_id: int, coin_id: int, amount: int) -> dict:
+    if amount < 1 or amount > 1_000_000:
+        return {"ok": False, "error": "Количество: от 1 до 1 000 000"}
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        coin_res = await session.execute(select(Coin).where(Coin.id == coin_id, Coin.is_active == True))
+        coin = coin_res.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        if coin.available_supply < amount:
+            return {"ok": False, "error": f"Недостаточно монет в обороте (доступно: {coin.available_supply})"}
+        cost = _calc_buy_cost(coin, amount)
+        if user.balance < cost:
+            return {"ok": False, "error": f"Недостаточно кликов. Нужно: {int(cost)}, есть: {int(user.balance)}"}
+        user.balance -= cost
+        coin.available_supply -= amount
+        coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
+        uc_res = await session.execute(
+            select(UserCoin).where(UserCoin.user_id == user.id, UserCoin.coin_id == coin_id)
+        )
+        uc = uc_res.scalar_one_or_none()
+        if uc:
+            uc.amount += amount
+        else:
+            uc = UserCoin(user_id=user.id, coin_id=coin_id, amount=amount)
+            session.add(uc)
+        await session.commit()
+        await add_user_log(user.id, telegram_id, "coin_buy",
+                           f"Куплено {amount} {coin.symbol} за {int(cost)} кликов")
+        return {"ok": True, "cost": cost, "new_balance": user.balance, "new_price": coin.current_price}
+
+
+async def sell_coins(telegram_id: int, coin_id: int, amount: int) -> dict:
+    if amount < 1 or amount > 1_000_000:
+        return {"ok": False, "error": "Количество: от 1 до 1 000 000"}
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"ok": False, "error": "Пользователь не найден"}
+        coin_res = await session.execute(select(Coin).where(Coin.id == coin_id, Coin.is_active == True))
+        coin = coin_res.scalar_one_or_none()
+        if not coin:
+            return {"ok": False, "error": "Монета не найдена"}
+        uc_res = await session.execute(
+            select(UserCoin).where(UserCoin.user_id == user.id, UserCoin.coin_id == coin_id)
+        )
+        uc = uc_res.scalar_one_or_none()
+        if not uc or uc.amount < amount:
+            return {"ok": False, "error": f"Недостаточно монет. Есть: {int(uc.amount) if uc else 0}"}
+        revenue = _calc_sell_revenue(coin, amount)
+        uc.amount -= amount
+        user.balance += revenue
+        if user.balance > user.max_balance:
+            user.max_balance = user.balance
+        coin.available_supply += amount
+        coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
+        await session.commit()
+        await add_user_log(user.id, telegram_id, "coin_sell",
+                           f"Продано {amount} {coin.symbol} за {int(revenue)} кликов")
+        return {"ok": True, "revenue": revenue, "new_balance": user.balance, "new_price": coin.current_price}
+
+
+# ── Trades ────────────────────────────────────────────────────
+
+TRADE_COMMISSION = 0.05  # 5%
+
+
+def _trade_dict(t: TradeOffer, sender: User = None, receiver: User = None) -> dict:
+    return {
+        "id": t.id, "status": t.status,
+        "sender_id": t.sender_id, "receiver_id": t.receiver_id,
+        "sender_telegram_id": sender.telegram_id if sender else None,
+        "receiver_telegram_id": receiver.telegram_id if receiver else None,
+        "sender_name": (sender.first_name or sender.username or str(sender.telegram_id)) if sender else None,
+        "receiver_name": (receiver.first_name or receiver.username or str(receiver.telegram_id)) if receiver else None,
+        "sender_coins": json.loads(t.sender_coins),
+        "receiver_coins": json.loads(t.receiver_coins),
+        "sender_clicks": t.sender_clicks,
+        "receiver_clicks": t.receiver_clicks,
+        "created_at": t.created_at.isoformat()
+    }
+
+
+async def create_trade_offer(sender_telegram_id: int, receiver_query: str,
+                             sender_coins: list, receiver_coins: list,
+                             sender_clicks: float, receiver_clicks: float) -> dict:
+    """receiver_query: @username or numeric telegram_id."""
+    async with async_session() as session:
+        sender_res = await session.execute(select(User).where(User.telegram_id == sender_telegram_id))
+        sender = sender_res.scalar_one_or_none()
+        if not sender:
+            return {"ok": False, "error": "Отправитель не найден"}
+
+        # Find receiver
+        if receiver_query.startswith("@"):
+            username = receiver_query[1:].strip()
+            recv_res = await session.execute(select(User).where(User.username == username))
+        else:
+            try:
+                tg_id = int(receiver_query)
+            except ValueError:
+                return {"ok": False, "error": "Введите @username или числовой ID"}
+            recv_res = await session.execute(select(User).where(User.telegram_id == tg_id))
+        receiver = recv_res.scalar_one_or_none()
+        if not receiver:
+            return {"ok": False, "error": "Получатель не найден"}
+        if receiver.id == sender.id:
+            return {"ok": False, "error": "Нельзя торговать с самим собой"}
+
+        # Validate sender has what they're offering
+        if sender_clicks > 0:
+            if sender.balance < sender_clicks:
+                return {"ok": False, "error": f"Недостаточно кликов. Нужно: {int(sender_clicks)}"}
+        for sc in sender_coins:
+            uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == sender.id, UserCoin.coin_id == sc["coin_id"])
+            )
+            uc = uc_res.scalar_one_or_none()
+            if not uc or uc.amount < sc["amount"]:
+                return {"ok": False, "error": f"Недостаточно монет для обмена"}
+
+        # Reserve sender's assets (deduct immediately, refund if rejected/cancelled)
+        sender.balance -= sender_clicks
+        for sc in sender_coins:
+            uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == sender.id, UserCoin.coin_id == sc["coin_id"])
+            )
+            uc = uc_res.scalar_one_or_none()
+            uc.amount -= sc["amount"]
+
+        trade = TradeOffer(
+            sender_id=sender.id, receiver_id=receiver.id, status="pending",
+            sender_coins=json.dumps(sender_coins), receiver_coins=json.dumps(receiver_coins),
+            sender_clicks=sender_clicks, receiver_clicks=receiver_clicks
+        )
+        session.add(trade)
+        await session.commit()
+        await session.refresh(trade)
+        return {"ok": True, "trade_id": trade.id,
+                "receiver_name": receiver.first_name or receiver.username or str(receiver.telegram_id)}
+
+
+async def get_user_trades(telegram_id: int) -> dict:
+    async with async_session() as session:
+        user_res = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            return {"incoming": [], "outgoing": []}
+
+        inc_res = await session.execute(
+            select(TradeOffer).where(TradeOffer.receiver_id == user.id, TradeOffer.status == "pending")
+            .order_by(TradeOffer.created_at.desc())
+        )
+        out_res = await session.execute(
+            select(TradeOffer).where(TradeOffer.sender_id == user.id)
+            .order_by(TradeOffer.created_at.desc()).limit(20)
+        )
+        incoming_offers = inc_res.scalars().all()
+        outgoing_offers = out_res.scalars().all()
+
+        async def enrich(t: TradeOffer):
+            s_res = await session.execute(select(User).where(User.id == t.sender_id))
+            r_res = await session.execute(select(User).where(User.id == t.receiver_id))
+            return _trade_dict(t, s_res.scalar_one_or_none(), r_res.scalar_one_or_none())
+
+        incoming = [await enrich(t) for t in incoming_offers]
+        outgoing = [await enrich(t) for t in outgoing_offers]
+        return {"incoming": incoming, "outgoing": outgoing}
+
+
+async def accept_trade(trade_id: int, receiver_telegram_id: int) -> dict:
+    async with async_session() as session:
+        trade_res = await session.execute(select(TradeOffer).where(TradeOffer.id == trade_id))
+        trade = trade_res.scalar_one_or_none()
+        if not trade:
+            return {"ok": False, "error": "Сделка не найдена"}
+        if trade.status != "pending":
+            return {"ok": False, "error": "Сделка уже обработана"}
+
+        recv_res = await session.execute(select(User).where(User.telegram_id == receiver_telegram_id))
+        receiver = recv_res.scalar_one_or_none()
+        if not receiver or receiver.id != trade.receiver_id:
+            return {"ok": False, "error": "Нет доступа"}
+
+        sender_res = await session.execute(select(User).where(User.id == trade.sender_id))
+        sender = sender_res.scalar_one_or_none()
+
+        receiver_coins = json.loads(trade.receiver_coins)
+        sender_coins = json.loads(trade.sender_coins)
+
+        # Validate receiver has what they must pay
+        commission_clicks = round(trade.receiver_clicks * TRADE_COMMISSION, 2)
+        total_recv_clicks = trade.receiver_clicks + commission_clicks
+        if trade.receiver_clicks > 0:
+            if receiver.balance < total_recv_clicks:
+                return {"ok": False, "error": f"Недостаточно кликов (нужно {int(total_recv_clicks)} включая 5% комиссию)"}
+        for rc in receiver_coins:
+            uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == receiver.id, UserCoin.coin_id == rc["coin_id"])
+            )
+            uc = uc_res.scalar_one_or_none()
+            commission_coins = round(rc["amount"] * TRADE_COMMISSION, 4)
+            needed = rc["amount"] + commission_coins
+            if not uc or uc.amount < needed:
+                return {"ok": False, "error": "Недостаточно монет для комиссии (5%)"}
+
+        # Execute transfer
+        # Sender gets receiver's coins/clicks (minus commission)
+        receiver.balance -= total_recv_clicks
+        sender.balance += trade.receiver_clicks  # sender gets full amount, receiver paid commission
+        if sender.balance > sender.max_balance:
+            sender.max_balance = sender.balance
+
+        for rc in receiver_coins:
+            commission_coins = round(rc["amount"] * TRADE_COMMISSION, 4)
+            recv_uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == receiver.id, UserCoin.coin_id == rc["coin_id"])
+            )
+            recv_uc = recv_uc_res.scalar_one_or_none()
+            recv_uc.amount -= (rc["amount"] + commission_coins)
+            # Sender gets receiver's coins
+            send_uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == sender.id, UserCoin.coin_id == rc["coin_id"])
+            )
+            send_uc = send_uc_res.scalar_one_or_none()
+            if send_uc:
+                send_uc.amount += rc["amount"]
+            else:
+                session.add(UserCoin(user_id=sender.id, coin_id=rc["coin_id"], amount=rc["amount"]))
+
+        # Receiver gets sender's reserved coins/clicks
+        receiver.balance += trade.sender_clicks
+        if receiver.balance > receiver.max_balance:
+            receiver.max_balance = receiver.balance
+
+        for sc in sender_coins:
+            recv_uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == receiver.id, UserCoin.coin_id == sc["coin_id"])
+            )
+            recv_uc = recv_uc_res.scalar_one_or_none()
+            if recv_uc:
+                recv_uc.amount += sc["amount"]
+            else:
+                session.add(UserCoin(user_id=receiver.id, coin_id=sc["coin_id"], amount=sc["amount"]))
+
+        trade.status = "accepted"
+        trade.updated_at = now_msk()
+        await session.commit()
+        await add_user_log(receiver.id, receiver_telegram_id, "trade_accept",
+                           f"Принята сделка #{trade_id}")
+        await add_user_log(sender.id, sender.telegram_id, "trade_accept",
+                           f"Сделка #{trade_id} принята получателем")
+        return {"ok": True}
+
+
+async def reject_trade(trade_id: int, user_telegram_id: int) -> dict:
+    async with async_session() as session:
+        trade_res = await session.execute(select(TradeOffer).where(TradeOffer.id == trade_id))
+        trade = trade_res.scalar_one_or_none()
+        if not trade:
+            return {"ok": False, "error": "Сделка не найдена"}
+        if trade.status != "pending":
+            return {"ok": False, "error": "Сделка уже обработана"}
+
+        user_res = await session.execute(select(User).where(User.telegram_id == user_telegram_id))
+        user = user_res.scalar_one_or_none()
+        if not user or (user.id != trade.receiver_id and user.id != trade.sender_id):
+            return {"ok": False, "error": "Нет доступа"}
+
+        # Refund sender
+        sender_res = await session.execute(select(User).where(User.id == trade.sender_id))
+        sender = sender_res.scalar_one_or_none()
+        sender.balance += trade.sender_clicks
+
+        sender_coins = json.loads(trade.sender_coins)
+        for sc in sender_coins:
+            uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == sender.id, UserCoin.coin_id == sc["coin_id"])
+            )
+            uc = uc_res.scalar_one_or_none()
+            if uc:
+                uc.amount += sc["amount"]
+            else:
+                session.add(UserCoin(user_id=sender.id, coin_id=sc["coin_id"], amount=sc["amount"]))
+
+        trade.status = "rejected" if user.id == trade.receiver_id else "cancelled"
+        trade.updated_at = now_msk()
+        await session.commit()
+        return {"ok": True}

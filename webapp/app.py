@@ -32,7 +32,12 @@ from database.db import (
     admin_delete_promo_code, admin_get_promo_codes, activate_promo_code, toggle_promo_code,
     save_user_settings, update_user_profile, claim_offline_income,
     get_or_create_api_key, regenerate_api_key, get_user_by_api_key,
-    get_global_vpn_notify, set_global_vpn_notify
+    get_global_vpn_notify, set_global_vpn_notify,
+    get_music_url, set_music_url,
+    get_active_coins, get_all_coins_admin, admin_create_coin, admin_edit_coin,
+    admin_delete_coin, admin_toggle_coin, admin_give_coin,
+    get_user_coins, buy_coins, sell_coins,
+    create_trade_offer, get_user_trades, accept_trade, reject_trade,
 )
 from config import ADMIN_IDS
 
@@ -80,7 +85,8 @@ async def get_user(telegram_id: int, username: str = None, first_name: str = Non
         "news_show": user.news_show,
         "news_notify_enabled": user.news_notify_enabled,
         "equipped_avatar": user.equipped_avatar or "👤",
-        "equipped_frame": user.equipped_frame or ""
+        "equipped_frame": user.equipped_frame or "",
+        "click_multiplier": user.click_multiplier if user.click_multiplier else 1.0
     }
 
 
@@ -686,6 +692,8 @@ class AchievementCreate(BaseModel):
     icon: str = "🏆"
     condition_type: str
     condition_value: str = "0"
+    reward_type: Optional[str] = None
+    reward_value: Optional[float] = 0.0
 
 
 @app.post("/api/admin/achievements")
@@ -693,7 +701,8 @@ async def admin_create_achievement(data: AchievementCreate):
     await require_admin(data.admin_telegram_id)
     return await admin_add_achievement(
         name=data.name, description=data.description, icon=data.icon,
-        condition_type=data.condition_type, condition_value=data.condition_value
+        condition_type=data.condition_type, condition_value=data.condition_value,
+        reward_type=data.reward_type, reward_value=data.reward_value or 0.0
     )
 
 
@@ -705,6 +714,8 @@ class AchievementEdit(BaseModel):
     icon: Optional[str] = None
     condition_type: Optional[str] = None
     condition_value: Optional[str] = None
+    reward_type: Optional[str] = None
+    reward_value: Optional[float] = None
     is_active: Optional[bool] = None
 
 
@@ -958,3 +969,166 @@ async def api_admin_toggle_news(news_id: int, data: NewsDeleteBody):
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Нет доступа")
     return await toggle_news(news_id)
+
+
+# ── Music ─────────────────────────────────────────────────────
+
+@app.get("/api/music")
+async def api_get_music():
+    url = await get_music_url()
+    return {"url": url or ""}
+
+
+class MusicSetBody(BaseModel):
+    admin_telegram_id: int
+    url: str
+
+
+@app.post("/api/admin/music")
+async def api_set_music(data: MusicSetBody):
+    await require_admin(data.admin_telegram_id)
+    return await set_music_url(data.url.strip())
+
+
+# ── Exchange Coins ─────────────────────────────────────────────
+
+@app.get("/api/exchange/coins")
+async def api_get_coins():
+    return await get_active_coins()
+
+
+@app.get("/api/exchange/coins/{telegram_id}")
+async def api_get_user_coins(telegram_id: int):
+    return await get_user_coins(telegram_id)
+
+
+class CoinBuyBody(BaseModel):
+    amount: int
+
+
+@app.post("/api/exchange/buy/{telegram_id}/{coin_id}")
+async def api_buy_coin(telegram_id: int, coin_id: int, body: CoinBuyBody):
+    return await buy_coins(telegram_id, coin_id, body.amount)
+
+
+@app.post("/api/exchange/sell/{telegram_id}/{coin_id}")
+async def api_sell_coin(telegram_id: int, coin_id: int, body: CoinBuyBody):
+    return await sell_coins(telegram_id, coin_id, body.amount)
+
+
+# ── Trade Offers ───────────────────────────────────────────────
+
+class TradeCreateBody(BaseModel):
+    receiver_query: str          # @username or telegram_id
+    sender_coins: list = []      # [{coin_id, amount}]
+    receiver_coins: list = []    # [{coin_id, amount}]
+    sender_clicks: float = 0.0
+    receiver_clicks: float = 0.0
+
+
+@app.post("/api/exchange/trade/create/{telegram_id}")
+async def api_create_trade(telegram_id: int, body: TradeCreateBody):
+    return await create_trade_offer(
+        telegram_id, body.receiver_query,
+        body.sender_coins, body.receiver_coins,
+        body.sender_clicks, body.receiver_clicks
+    )
+
+
+@app.get("/api/exchange/trade/list/{telegram_id}")
+async def api_list_trades(telegram_id: int):
+    return await get_user_trades(telegram_id)
+
+
+class TradeActionBody(BaseModel):
+    telegram_id: int
+
+
+@app.post("/api/exchange/trade/accept/{trade_id}")
+async def api_accept_trade(trade_id: int, body: TradeActionBody):
+    return await accept_trade(trade_id, body.telegram_id)
+
+
+@app.post("/api/exchange/trade/reject/{trade_id}")
+async def api_reject_trade(trade_id: int, body: TradeActionBody):
+    return await reject_trade(trade_id, body.telegram_id)
+
+
+# ── Admin: Coins ───────────────────────────────────────────────
+
+@app.get("/api/admin/coins/{telegram_id}")
+async def api_admin_get_coins(telegram_id: int):
+    await require_admin(telegram_id)
+    return await get_all_coins_admin()
+
+
+class CoinCreateBody(BaseModel):
+    admin_telegram_id: int
+    name: str
+    symbol: str
+    icon: str = "🪙"
+    description: str = ""
+    total_supply: int = 1000000
+    base_price: float = 1.0
+    price_increment: float = 1.0
+
+
+@app.post("/api/admin/coins/create")
+async def api_admin_create_coin(data: CoinCreateBody):
+    await require_admin(data.admin_telegram_id)
+    return await admin_create_coin(
+        name=data.name, symbol=data.symbol, icon=data.icon,
+        description=data.description, total_supply=data.total_supply,
+        base_price=data.base_price, price_increment=data.price_increment
+    )
+
+
+class CoinEditBody(BaseModel):
+    admin_telegram_id: int
+    coin_id: int
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    description: Optional[str] = None
+    total_supply: Optional[int] = None
+    available_supply: Optional[int] = None
+    base_price: Optional[float] = None
+    price_increment: Optional[float] = None
+    current_price: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+@app.post("/api/admin/coins/edit")
+async def api_admin_edit_coin(data: CoinEditBody):
+    await require_admin(data.admin_telegram_id)
+    kwargs = {k: v for k, v in data.dict().items() if k not in ("admin_telegram_id", "coin_id") and v is not None}
+    return await admin_edit_coin(data.coin_id, **kwargs)
+
+
+class CoinDeleteBody(BaseModel):
+    admin_telegram_id: int
+    coin_id: int
+
+
+@app.post("/api/admin/coins/delete")
+async def api_admin_delete_coin(data: CoinDeleteBody):
+    await require_admin(data.admin_telegram_id)
+    return await admin_delete_coin(data.coin_id)
+
+
+@app.post("/api/admin/coins/toggle")
+async def api_admin_toggle_coin(data: CoinDeleteBody):
+    await require_admin(data.admin_telegram_id)
+    return await admin_toggle_coin(data.coin_id)
+
+
+class CoinGiveBody(BaseModel):
+    admin_telegram_id: int
+    target_telegram_id: int
+    coin_id: int
+    amount: float
+
+
+@app.post("/api/admin/coins/give")
+async def api_admin_give_coin(data: CoinGiveBody):
+    await require_admin(data.admin_telegram_id)
+    return await admin_give_coin(data.admin_telegram_id, data.target_telegram_id, data.coin_id, data.amount)
