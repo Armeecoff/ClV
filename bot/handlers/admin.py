@@ -409,7 +409,7 @@ async def cmd_add_vpn_start(message: Message):
     if not await is_admin(message.from_user.id):
         return
     _vpn_states[message.from_user.id] = {"step": "name"}
-    await message.answer("➕ <b>Добавление VPN</b>\n\nШаг 1/6: <b>Название</b>:", parse_mode="HTML")
+    await message.answer("➕ <b>Добавление VPN</b>\n\nШаг 1: <b>Название</b>:", parse_mode="HTML")
 
 
 # ── Пошаговое добавление Upgrade ──
@@ -435,23 +435,61 @@ async def handle_steps(message: Message):
         step = state.get("step")
         if step == "name":
             state["name"] = message.text; state["step"] = "description"
-            await message.answer("Шаг 2/6: <b>Описание</b>:", parse_mode="HTML")
+            await message.answer("Шаг 2: <b>Описание</b>:", parse_mode="HTML")
         elif step == "description":
-            state["description"] = message.text; state["step"] = "config_data"
-            await message.answer("Шаг 3/6: <b>Конфиг VPN</b> (текст/ключ):", parse_mode="HTML")
+            state["description"] = message.text; state["step"] = "type"
+            await message.answer(
+                "Шаг 3: <b>Тип конфига</b>:\n"
+                "<code>стандарт</code> — один конфиг/ключ для всех\n"
+                "<code>уникальный</code> — отдельная ссылка на каждого покупателя",
+                parse_mode="HTML"
+            )
+        elif step == "type":
+            t = message.text.strip().lower()
+            if t in ("уникальный", "unique", "у", "u"):
+                state["is_unique"] = True; state["step"] = "unique_links"
+                await message.answer(
+                    "Шаг 4: <b>Уникальные ссылки</b>\n"
+                    "Отправьте ссылки — <b>каждую с новой строки</b>.\n"
+                    "Количество конфигов = количество ссылок.",
+                    parse_mode="HTML"
+                )
+            else:
+                state["is_unique"] = False; state["step"] = "config_data"
+                await message.answer("Шаг 4: <b>Конфиг VPN</b> (текст/ключ):", parse_mode="HTML")
         elif step == "config_data":
             state["config_data"] = message.text; state["step"] = "price"
-            await message.answer("Шаг 4/6: <b>Цена в кликах</b>:", parse_mode="HTML")
+            await message.answer("Шаг 5: <b>Цена в кликах</b>:", parse_mode="HTML")
+        elif step == "unique_links":
+            links = [l.strip() for l in message.text.splitlines() if l.strip()]
+            if not links: await message.answer("❌ Не найдено ни одной ссылки, попробуйте ещё раз."); return
+            state["unique_links"] = links; state["quantity"] = len(links)
+            state["step"] = "price"
+            await message.answer(f"✅ {len(links)} ссылок принято.\nШаг 5: <b>Цена в кликах</b>:", parse_mode="HTML")
         elif step == "price":
             try: state["price_clicks"] = float(message.text)
             except ValueError: await message.answer("❌ Введите число!"); return
             state["step"] = "duration"
-            await message.answer("Шаг 5/6: <b>Срок действия (дней)</b>:", parse_mode="HTML")
+            await message.answer("Шаг 6: <b>Срок действия (дней)</b>:", parse_mode="HTML")
         elif step == "duration":
             try: state["duration_days"] = int(message.text)
             except ValueError: await message.answer("❌ Введите целое число!"); return
-            state["step"] = "quantity"
-            await message.answer("Шаг 6/6: <b>Количество в наличии</b>:", parse_mode="HTML")
+            state["step"] = "connect_url"
+            await message.answer(
+                "Шаг 7: <b>URL авто-подключения</b> (необязательно)\n"
+                "Это ссылка-кнопка на карточке купленного конфига.\n"
+                "Отправьте ссылку или <code>нет</code>.",
+                parse_mode="HTML"
+            )
+        elif step == "connect_url":
+            t = message.text.strip()
+            state["connect_url"] = None if t.lower() in ("нет", "no", "-") else t
+            if not state.get("is_unique"):
+                state["step"] = "quantity"
+                await message.answer("Шаг 8: <b>Количество в наличии</b>:", parse_mode="HTML")
+            else:
+                state["step"] = "available_until"
+                await message.answer("Последний шаг: <b>Дата окончания</b> (ДД.ММ.ГГГГ или <code>нет</code>):", parse_mode="HTML")
         elif step == "quantity":
             try: state["quantity"] = int(message.text)
             except ValueError: await message.answer("❌ Введите целое число!"); return
@@ -464,12 +502,21 @@ async def handle_steps(message: Message):
                 except ValueError: await message.answer("❌ Формат: ДД.ММ.ГГГГ или 'нет'"); return
             vpn = await add_vpn_config(
                 name=state["name"], description=state["description"],
-                config_data=state["config_data"], price_clicks=state["price_clicks"],
+                config_data=state.get("config_data", ""),
+                price_clicks=state["price_clicks"],
                 duration_days=state["duration_days"], quantity=state["quantity"],
-                available_until=available_until, created_by=uid
+                available_until=available_until, created_by=uid,
+                is_unique=state.get("is_unique", False),
+                unique_links=state.get("unique_links"),
+                connect_url=state.get("connect_url"),
             )
             del _vpn_states[uid]
-            await message.answer(f"✅ <b>VPN добавлен!</b> ID: {vpn.id}\n{vpn.name} · 💰{int(vpn.price_clicks)} · ⏳{vpn.duration_days}д.", parse_mode="HTML")
+            uniq_note = f" · 🔑 {vpn.quantity} уник. ссылок" if vpn.is_unique else f" · 📦{int(vpn.quantity_left)}"
+            await message.answer(
+                f"✅ <b>VPN добавлен!</b> ID: {vpn.id}\n"
+                f"{vpn.name} · 💰{int(vpn.price_clicks)} · ⏳{vpn.duration_days}д.{uniq_note}",
+                parse_mode="HTML"
+            )
         return
 
     if uid in _upg_states:

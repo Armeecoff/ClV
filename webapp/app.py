@@ -394,6 +394,7 @@ async def admin_adjust_balance(data: BalanceAdjust):
 
 @app.get("/api/admin/vpn/{telegram_id}")
 async def admin_get_vpn(telegram_id: int):
+    import json as _json
     await require_admin(telegram_id)
     configs = await get_all_vpn_configs()
     return [
@@ -404,7 +405,10 @@ async def admin_get_vpn(telegram_id: int):
             "quantity_left": c.quantity_left,
             "is_premium_only": c.is_premium_only,
             "available_until": c.available_until.isoformat() if c.available_until else None,
-            "is_active": c.is_active, "created_at": c.created_at.isoformat()
+            "is_active": c.is_active, "created_at": c.created_at.isoformat(),
+            "is_unique": bool(c.is_unique),
+            "unique_links": _json.loads(c.unique_links) if c.unique_links else [],
+            "connect_url": c.connect_url or "",
         }
         for c in configs
     ]
@@ -414,12 +418,15 @@ class VPNCreate(BaseModel):
     admin_telegram_id: int
     name: str
     description: str = ""
-    config_data: str
+    config_data: str = ""
     price_clicks: float
     duration_days: int
-    quantity: int
+    quantity: int = 1
     available_until: Optional[str] = None
     is_premium_only: bool = False
+    is_unique: bool = False
+    unique_links: Optional[list] = None
+    connect_url: Optional[str] = None
 
 
 @app.post("/api/admin/vpn")
@@ -435,7 +442,9 @@ async def admin_add_vpn(data: VPNCreate):
         name=data.name, description=data.description, config_data=data.config_data,
         price_clicks=data.price_clicks, duration_days=data.duration_days,
         quantity=data.quantity, available_until=available_until,
-        created_by=data.admin_telegram_id, is_premium_only=data.is_premium_only
+        created_by=data.admin_telegram_id, is_premium_only=data.is_premium_only,
+        is_unique=data.is_unique, unique_links=data.unique_links,
+        connect_url=data.connect_url
     )
     return {"ok": True, "id": vpn.id}
 
@@ -453,12 +462,18 @@ class VPNEdit(BaseModel):
     available_until: Optional[str] = None
     is_active: Optional[bool] = None
     is_premium_only: Optional[bool] = None
+    is_unique: Optional[bool] = None
+    unique_links: Optional[list] = None
+    connect_url: Optional[str] = None
 
 
 @app.post("/api/admin/vpn/edit")
 async def admin_edit_vpn(data: VPNEdit):
     await require_admin(data.admin_telegram_id)
     kwargs = {k: v for k, v in data.dict().items() if k not in ("admin_telegram_id", "vpn_id") and v is not None}
+    # Allow clearing connect_url explicitly
+    if "connect_url" not in kwargs and data.connect_url == "":
+        kwargs["connect_url"] = ""
     if "available_until" in kwargs:
         try:
             kwargs["available_until"] = datetime.fromisoformat(kwargs["available_until"])

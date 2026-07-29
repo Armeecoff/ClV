@@ -13,6 +13,8 @@ _db_url = re.sub(r'&?sslmode=[^&?]*', '', _db_url)
 DATABASE_URL = _db_url
 
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
-WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:8000")
+_replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
+_default_webapp = f"https://{_replit_domain}" if _replit_domain else "http://localhost:8000"
+WEBAPP_URL = os.getenv("WEBAPP_URL") or _default_webapp
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme_secret_key_123")
 PORT = int(os.getenv("PORT", "5000"))

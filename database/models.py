@@ -107,6 +107,9 @@ class VPNConfig(Base):
     notify_sent = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
     created_by = Column(BigInteger, nullable=True)
+    is_unique = Column(Boolean, default=False, nullable=False)
+    unique_links = Column(Text, nullable=True)  # JSON list of link strings
+    connect_url = Column(Text, nullable=True)   # URL for auto-connect button
 
     purchases = relationship("VPNPurchase", back_populates="vpn_config")
 
@@ -120,6 +123,7 @@ class VPNPurchase(Base):
     price_paid = Column(Float, nullable=False)
     purchased_at = Column(DateTime, default=now_msk, nullable=False)
     expires_at = Column(DateTime, nullable=True)
+    assigned_link = Column(Text, nullable=True)  # for unique-link configs
 
     user = relationship("User", back_populates="vpn_purchases")
     vpn_config = relationship("VPNConfig", back_populates="purchases")

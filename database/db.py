@@ -53,6 +53,10 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_avatar VARCHAR(20) DEFAULT '👤' NOT NULL",
             "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS is_premium_only BOOLEAN DEFAULT FALSE NOT NULL",
             "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS notify_sent BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS is_unique BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS unique_links TEXT DEFAULT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS connect_url TEXT DEFAULT NULL",
+            "ALTER TABLE vpn_purchases ADD COLUMN IF NOT EXISTS assigned_link TEXT DEFAULT NULL",
             "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS item_type VARCHAR(10) DEFAULT 'avatar' NOT NULL",
             "ALTER TABLE avatars ADD COLUMN IF NOT EXISTS border_css VARCHAR(200) DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_frame VARCHAR(200) DEFAULT '' NOT NULL",
@@ -396,16 +400,24 @@ async def auto_disable_expired_vpns():
             await session.commit()
 
 
-async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False) -> VPNConfig:
+async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False, is_unique=False, unique_links=None, connect_url=None) -> VPNConfig:
+    import json as _json
     async with async_session() as session:
         if available_until is None:
             available_until = now_msk() + timedelta(days=duration_days)
+        unique_links_json = None
+        if is_unique and unique_links:
+            links = [l.strip() for l in unique_links if l.strip()]
+            unique_links_json = _json.dumps(links, ensure_ascii=False)
+            quantity = len(links)
         vpn = VPNConfig(
             name=name, description=description, config_data=config_data,
             price_clicks=price_clicks, duration_days=duration_days,
             quantity=quantity, quantity_left=quantity,
             available_until=available_until, created_by=created_by,
-            is_premium_only=is_premium_only
+            is_premium_only=is_premium_only,
+            is_unique=is_unique, unique_links=unique_links_json,
+            connect_url=connect_url or None
         )
         session.add(vpn)
         await session.commit()
@@ -415,14 +427,31 @@ async def add_vpn_config(name, description, config_data, price_clicks, duration_
 
 
 async def edit_vpn_config(vpn_id: int, **kwargs) -> dict:
+    import json as _json
     async with async_session() as session:
         result = await session.execute(select(VPNConfig).where(VPNConfig.id == vpn_id))
         vpn = result.scalar_one_or_none()
         if not vpn:
             return {"ok": False, "error": "Не найден"}
+        # Handle unique_links: accept a list and serialize to JSON, updating quantity
+        if "unique_links" in kwargs:
+            raw = kwargs.pop("unique_links")
+            if raw is None:
+                vpn.unique_links = None
+            else:
+                if isinstance(raw, list):
+                    links = [l.strip() for l in raw if str(l).strip()]
+                else:
+                    links = [l.strip() for l in str(raw).splitlines() if l.strip()]
+                vpn.unique_links = _json.dumps(links, ensure_ascii=False)
+                vpn.quantity = len(links)
+                vpn.quantity_left = len(links)
         for k, v in kwargs.items():
             if hasattr(vpn, k) and v is not None:
                 setattr(vpn, k, v)
+        # Allow clearing connect_url by passing empty string
+        if "connect_url" in kwargs and kwargs["connect_url"] == "":
+            vpn.connect_url = None
         await session.commit()
         return {"ok": True}
 
@@ -469,10 +498,22 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         if user.balance < effective_price:
             return {"ok": False, "error": f"Нужно {int(effective_price)} кликов"}
 
+        import json as _json
         user.balance -= effective_price
         vpn.quantity_left -= 1
         expires_at = vpn.available_until if vpn.available_until else now + timedelta(days=vpn.duration_days)
-        purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price, expires_at=expires_at)
+
+        assigned_link = None
+        if vpn.is_unique and vpn.unique_links:
+            try:
+                links = _json.loads(vpn.unique_links)
+                if links:
+                    assigned_link = links.pop(0)
+                    vpn.unique_links = _json.dumps(links, ensure_ascii=False)
+            except Exception:
+                pass
+
+        purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price, expires_at=expires_at, assigned_link=assigned_link)
         session.add(purchase)
         await session.commit()
         res = {"ok": True, "config_data": vpn.config_data, "expires_at": expires_at.isoformat(), "new_balance": user.balance}
@@ -499,7 +540,10 @@ async def get_user_vpn_purchases(telegram_id: int) -> list:
                 "id": p.id, "vpn_name": vpn.name if vpn else "Удалён",
                 "price_paid": p.price_paid, "purchased_at": p.purchased_at.isoformat(),
                 "expires_at": p.expires_at.isoformat() if p.expires_at else None,
-                "config_data": vpn.config_data if vpn else ""
+                "config_data": vpn.config_data if vpn else "",
+                "assigned_link": p.assigned_link or "",
+                "connect_url": (vpn.connect_url or "") if vpn else "",
+                "is_unique": (vpn.is_unique if vpn else False),
             })
         return out
 
