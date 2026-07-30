@@ -110,6 +110,13 @@ class VPNConfig(Base):
     is_unique = Column(Boolean, default=False, nullable=False)
     unique_links = Column(Text, nullable=True)  # JSON list of link strings
     connect_url = Column(Text, nullable=True)   # URL for auto-connect button
+    # Coin payment requirements (up to 3 coin types)
+    coin_req_1_id = Column(Integer, nullable=True)
+    coin_req_1_amount = Column(Float, default=0.0, nullable=True)
+    coin_req_2_id = Column(Integer, nullable=True)
+    coin_req_2_amount = Column(Float, default=0.0, nullable=True)
+    coin_req_3_id = Column(Integer, nullable=True)
+    coin_req_3_amount = Column(Float, default=0.0, nullable=True)
 
     purchases = relationship("VPNPurchase", back_populates="vpn_config")
 
@@ -124,6 +131,7 @@ class VPNPurchase(Base):
     purchased_at = Column(DateTime, default=now_msk, nullable=False)
     expires_at = Column(DateTime, nullable=True)
     assigned_link = Column(Text, nullable=True)  # for unique-link configs
+    connect_url = Column(Text, nullable=True)     # frozen at purchase time
 
     user = relationship("User", back_populates="vpn_purchases")
     vpn_config = relationship("VPNConfig", back_populates="purchases")
@@ -290,6 +298,12 @@ class Coin(Base):
     current_price = Column(Float, nullable=False, default=1.0)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=now_msk, nullable=False)
+    # Random price mode fields
+    price_mode = Column(String(10), default="market", nullable=False)  # market | random
+    price_change_min_pct = Column(Float, default=-5.0, nullable=False)
+    price_change_max_pct = Column(Float, default=5.0, nullable=False)
+    price_floor = Column(Float, nullable=True)      # minimum allowed price
+    price_ceiling = Column(Float, nullable=True)    # maximum allowed price
 
     user_coins = relationship("UserCoin", back_populates="coin", cascade="all, delete-orphan")
 

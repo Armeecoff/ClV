@@ -787,7 +787,7 @@ select.form-input { cursor:pointer; }
 
   <div id="admin-tab-coins" style="display:none">
     <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openAddCoinModal()">➕ Создать монету</button>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Цена рассчитывается: base_price + increment × купленных монет. При покупке N штук сумма считается как N последовательных покупок.</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">📊 Рыночная: цена = base_price + increment × купленных монет. 🎲 Случайная: цена меняется случайно каждые 3 минуты на заданный % (с полом и потолком).</div>
     <div id="admin-coins-list"><div class="loader"><div class="spinner"></div></div></div>
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:13px;font-weight:700;margin-bottom:8px">🎁 Выдать монеты игроку</div>
@@ -1095,6 +1095,21 @@ select.form-input { cursor:pointer; }
     <div class="form-group" style="display:flex;align-items:center;gap:10px">
       <input type="checkbox" id="vpn-premium-only" style="width:16px;height:16px;cursor:pointer">
       <label for="vpn-premium-only" class="form-label" style="margin:0;cursor:pointer">⭐ Только для Premium</label>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin:10px 0 5px">🪙 Оплата монетами (необязательно, до 3 типов)</div>
+    <div id="vpn-coin-req-fields">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px">
+        <select class="form-input" id="vpn-coin-req-1-id" style="font-size:12px"><option value="">— монета 1 —</option></select>
+        <input class="form-input" type="number" id="vpn-coin-req-1-amt" placeholder="Кол-во" min="0" step="1" style="font-size:12px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px">
+        <select class="form-input" id="vpn-coin-req-2-id" style="font-size:12px"><option value="">— монета 2 —</option></select>
+        <input class="form-input" type="number" id="vpn-coin-req-2-amt" placeholder="Кол-во" min="0" step="1" style="font-size:12px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <select class="form-input" id="vpn-coin-req-3-id" style="font-size:12px"><option value="">— монета 3 —</option></select>
+        <input class="form-input" type="number" id="vpn-coin-req-3-amt" placeholder="Кол-во" min="0" step="1" style="font-size:12px">
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-add-vpn')">Отмена</button>
@@ -1564,10 +1579,13 @@ async function loadVPN() {
   const c = document.getElementById('vpn-list');
   c.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
   try {
-    const [configs, promos] = await Promise.all([
+    const [configs, promos, coins] = await Promise.all([
       fetch('/api/vpn').then(r=>r.json()),
-      fetch('/api/promotions').then(r=>r.json()).catch(()=>[])
+      fetch('/api/promotions').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/exchange/coins').then(r=>r.json()).catch(()=>[])
     ]);
+    window._vpnCoinMap = {};
+    (coins||[]).forEach(co => { window._vpnCoinMap[co.id] = co; });
     const vpnDiscPromos = promos.filter(p => p.promo_type === 'vpn_disc');
     S.activeVpnDisc = vpnDiscPromos.length ? Math.max(...vpnDiscPromos.map(p=>p.value)) : 0;
     if (!configs.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🔐</div>VPN конфигов пока нет</div>'; return; }
@@ -1582,6 +1600,7 @@ async function loadVPN() {
       const discPct = cf.is_premium_only ? 0 : Math.max(vpnDisc, S.isPremium ? 10 : 0);
       const effectivePrice = Math.round(cf.price_clicks * (1 - discPct / 100));
       const discountNote = discPct > 0 ? `<span class="tag tag-green" style="font-size:10px">−${discPct}% скидка</span>` : '';
+      const coinReqHtml = _vpnCoinReqBadges(cf);
       return `<div class="card ${cf.is_premium_only && !S.isPremium ? 'opacity-60' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
           <div class="card-title">🔐 ${cf.name}</div>
@@ -1593,6 +1612,7 @@ async function loadVPN() {
           <span class="tag tag-yellow">📅 до ${untilLabel}</span>
           ${discountNote}
         </div>
+        ${coinReqHtml ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">${coinReqHtml}</div>` : ''}
         <div class="card-row">
           <div class="price-tag">💰 ${effectivePrice.toLocaleString('ru')}</div>
           <button class="btn btn-primary btn-sm" onclick='openVpnModal(${JSON.stringify(cf).replace(/'/g,"&#39;")})'>${cf.is_premium_only && !S.isPremium ? '⭐ Premium' : 'Купить'}</button>
@@ -1600,6 +1620,19 @@ async function loadVPN() {
       </div>`;
     }).join('');
   } catch(e) { c.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Ошибка</div>'; }
+}
+
+function _vpnCoinReqBadges(cf) {
+  const reqs = [
+    [cf.coin_req_1_id, cf.coin_req_1_amount],
+    [cf.coin_req_2_id, cf.coin_req_2_amount],
+    [cf.coin_req_3_id, cf.coin_req_3_amount],
+  ].filter(([id, amt]) => id && amt > 0);
+  return reqs.map(([id, amt]) => {
+    const co = (window._vpnCoinMap||{})[id];
+    const label = co ? `${co.icon}${amt} ${co.symbol}` : `🪙${amt} #${id}`;
+    return `<span class="tag tag-blue">+${label}</span>`;
+  }).join('');
 }
 
 let _curVpn = null;
@@ -1615,6 +1648,16 @@ function openVpnModal(vpn) {
   const discPct = vpn.is_premium_only ? 0 : Math.max(vpnDisc, S.isPremium ? 10 : 0);
   const effectivePrice = Math.round(vpn.price_clicks * (1 - discPct / 100));
   const discNote = discPct > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">🏷 Скидка −${discPct}% (${Math.floor(vpn.price_clicks).toLocaleString('ru')} → ${effectivePrice.toLocaleString('ru')})</div>` : '';
+  // Build coin requirement lines
+  const coinReqs = [
+    [vpn.coin_req_1_id, vpn.coin_req_1_amount],
+    [vpn.coin_req_2_id, vpn.coin_req_2_amount],
+    [vpn.coin_req_3_id, vpn.coin_req_3_amount],
+  ].filter(([id, amt]) => id && amt > 0);
+  const coinReqHtml = coinReqs.length ? `<div style="font-size:12px;margin-top:6px;color:var(--text2)">🪙 Требуются монеты: ${coinReqs.map(([id,amt]) => {
+    const co = (window._vpnCoinMap||{})[id];
+    return co ? `<b style="color:var(--yellow)">${amt} ${co.icon}${co.symbol}</b>` : `<b>${amt} #${id}</b>`;
+  }).join(', ')}</div>` : '';
   document.getElementById('modal-vpn-body').innerHTML = `
     <div style="color:var(--text2);font-size:12px;margin-bottom:10px">${vpn.description||''}</div>
     <div class="stat-grid" style="margin:0 0 6px">
@@ -1624,6 +1667,7 @@ function openVpnModal(vpn) {
       <div class="stat-card"><div class="stat-val" style="font-size:14px">📅</div><div class="stat-lbl">до ${untilLabel}</div></div>
     </div>
     ${discNote}
+    ${coinReqHtml}
     <div style="font-size:12px;color:var(--text2);margin-top:8px">Твой баланс: <b style="color:var(--yellow)">${Math.floor(S.balance).toLocaleString('ru')}</b></div>`;
   document.getElementById('modal-vpn-buy-btn').onclick = () => buyVPN(vpn.id);
   openModal('modal-vpn');
@@ -3057,6 +3101,9 @@ async function loadAdminVPN() {
         : `<details><summary style="cursor:pointer;font-size:11px;color:var(--text2)">Конфиг</summary>
             <div style="margin-top:5px;background:var(--bg);border-radius:6px;padding:6px;font-family:monospace;font-size:9px;word-break:break-all;color:var(--text2)">${escHtml(cf.config_data||'')}</div>
           </details>`;
+      const coinReqTags = [[cf.coin_req_1_id,cf.coin_req_1_amount],[cf.coin_req_2_id,cf.coin_req_2_amount],[cf.coin_req_3_id,cf.coin_req_3_amount]]
+        .filter(([id,amt])=>id&&amt>0)
+        .map(([id,amt])=>`<span class="tag tag-blue">🪙${amt}×#${id}</span>`).join('');
       return `<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div class="card-title">[${cf.id}] ${cf.name}</div>
@@ -3067,7 +3114,7 @@ async function loadAdminVPN() {
           <span class="tag tag-blue">⏳${cf.duration_days}д.</span>
           <span class="tag tag-green">📦${cf.quantity_left}/${cf.quantity}</span>
           <span class="tag tag-blue">📅${until}</span>
-          ${connectBadge}
+          ${connectBadge}${coinReqTags}
         </div>
         ${configPreview}
         <div class="admin-card-btns">
@@ -3260,7 +3307,7 @@ function _updateLinksCount() {
   document.getElementById('vpn-links-count').textContent = `${count} ссылок`;
 }
 
-function openAddVpnModal() {
+async function openAddVpnModal() {
   document.getElementById('modal-add-vpn-title').textContent = '➕ Добавить VPN';
   document.getElementById('edit-vpn-id').value = '';
   ['vpn-add-name','vpn-add-desc','vpn-add-config','vpn-add-unique-links','vpn-add-connect-url','vpn-add-price','vpn-add-duration','vpn-add-qty','vpn-add-qty-left','vpn-add-until'].forEach(id=>document.getElementById(id).value='');
@@ -3268,9 +3315,23 @@ function openAddVpnModal() {
   document.getElementById('vpn-qty-left-group').style.display = 'none';
   document.getElementById('vpn-links-count').textContent = '0 ссылок';
   document.getElementById('vpn-add-unique-links').oninput = _updateLinksCount;
+  ['vpn-coin-req-1-id','vpn-coin-req-2-id','vpn-coin-req-3-id'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  ['vpn-coin-req-1-amt','vpn-coin-req-2-amt','vpn-coin-req-3-amt'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  await _loadVpnCoinSelects();
   setVpnType('standard');
   renderVpnTemplates();
   openModal('modal-add-vpn');
+}
+
+async function _loadVpnCoinSelects() {
+  try {
+    const coins = await fetch('/api/exchange/coins').then(r=>r.json()).catch(()=>[]);
+    const opts = '<option value="">— нет —</option>' + (coins||[]).map(co => `<option value="${co.id}">${co.icon} ${co.name} (${co.symbol})</option>`).join('');
+    ['vpn-coin-req-1-id','vpn-coin-req-2-id','vpn-coin-req-3-id'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { const cur = el.value; el.innerHTML = opts; el.value = cur; }
+    });
+  } catch(e) {}
 }
 
 async function openEditVpnModal(id) {
@@ -3291,6 +3352,14 @@ async function openEditVpnModal(id) {
   document.getElementById('vpn-premium-only').checked = !!cf.is_premium_only;
   document.getElementById('vpn-add-connect-url').value = cf.connect_url || '';
   document.getElementById('vpn-add-unique-links').oninput = _updateLinksCount;
+  await _loadVpnCoinSelects();
+  // Fill coin requirements
+  [[1, cf.coin_req_1_id, cf.coin_req_1_amount],[2, cf.coin_req_2_id, cf.coin_req_2_amount],[3, cf.coin_req_3_id, cf.coin_req_3_amount]].forEach(([n, cid, camount]) => {
+    const selEl = document.getElementById(`vpn-coin-req-${n}-id`);
+    const amtEl = document.getElementById(`vpn-coin-req-${n}-amt`);
+    if (selEl) selEl.value = cid || '';
+    if (amtEl) amtEl.value = (camount && camount > 0) ? camount : '';
+  });
   if (cf.is_unique) {
     setVpnType('unique');
     document.getElementById('vpn-add-unique-links').value = (cf.unique_links||[]).join('\n');
@@ -3323,6 +3392,14 @@ async function submitVpnForm() {
     if (!name||!config||isNaN(price)||isNaN(dur)||isNaN(qty)) { showToast('❌ Заполни обязательные поля','error'); return; }
   }
 
+  // Read coin requirements
+  function _readCoinReq(n) {
+    const id = parseInt(document.getElementById(`vpn-coin-req-${n}-id`)?.value) || null;
+    const amt = parseFloat(document.getElementById(`vpn-coin-req-${n}-amt`)?.value) || 0;
+    return { id: id || null, amt: id ? amt : 0 };
+  }
+  const cr1 = _readCoinReq(1), cr2 = _readCoinReq(2), cr3 = _readCoinReq(3);
+
   const qtyLeftRaw = document.getElementById('vpn-add-qty-left').value;
   const body = {
     admin_telegram_id: S.user.telegram_id, name,
@@ -3331,6 +3408,9 @@ async function submitVpnForm() {
     is_unique: isUnique,
     unique_links: isUnique ? uniqueLinks : null,
     connect_url: connectUrl || null,
+    coin_req_1_id: cr1.id, coin_req_1_amount: cr1.amt,
+    coin_req_2_id: cr2.id, coin_req_2_amount: cr2.amt,
+    coin_req_3_id: cr3.id, coin_req_3_amount: cr3.amt,
     ...(editId && qtyLeftRaw !== '' && !isUnique ? {quantity_left: parseInt(qtyLeftRaw)} : {}),
     available_until: document.getElementById('vpn-add-until').value || null,
     is_premium_only: document.getElementById('vpn-premium-only').checked
@@ -4490,6 +4570,11 @@ async function loadMarket() {
     if (!coins.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🪙</div>Монет нет</div>'; return; }
     c.innerHTML = coins.map(coin => {
       const owned = _exUserCoins[coin.id] || 0;
+      const isRandom = coin.price_mode === 'random';
+      const modeTag = isRandom ? `<span class="tag tag-blue">🎲 Случайная цена</span>` : '';
+      const priceDesc = isRandom
+        ? `<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Цена меняется случайно каждые 3 мин. (${coin.price_change_min_pct}% .. +${coin.price_change_max_pct}%)</div>`
+        : `<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Цена растёт на ${coin.price_increment} кл. за каждую купленную монету</div>`;
       return `<div class="card">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <span style="font-size:28px">${coin.icon}</span>
@@ -4504,9 +4589,10 @@ async function loadMarket() {
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
           <span class="tag tag-blue">🏦 ${coin.available_supply.toLocaleString('ru')} / ${coin.total_supply.toLocaleString('ru')}</span>
+          ${modeTag}
           ${owned > 0 ? `<span class="tag tag-green">У вас: ${owned.toLocaleString('ru')}</span>` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Цена растёт на ${coin.price_increment} кл. за каждую купленную монету</div>
+        ${priceDesc}
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" style="flex:1" onclick="openBuyCoinModal(${coin.id})">🛒 Купить</button>
           ${owned > 0 ? `<button class="btn btn-outline btn-sm" style="flex:1" onclick="openSellCoinModal(${coin.id})">💸 Продать</button>` : ''}
@@ -4554,11 +4640,12 @@ function calcSellRevenue(currentPrice, increment, amount) {
 async function openBuyCoinModal(coinId) {
   const coin = _exCoins.find(c => c.id === coinId);
   if (!coin) return;
+  const isRandom = coin.price_mode === 'random';
   const amtStr = prompt(`🛒 Покупка ${coin.name} (${coin.symbol})\nТекущая цена: ${Math.round(coin.current_price)} кл.\nСколько купить? (1 - ${coin.available_supply.toLocaleString('ru')})`);
   if (!amtStr) return;
   const amt = parseInt(amtStr);
   if (!amt || amt < 1) { showToast('❌ Неверное количество', 'error'); return; }
-  const cost = calcBuyCost(coin.current_price, coin.price_increment, amt);
+  const cost = isRandom ? amt * coin.current_price : calcBuyCost(coin.current_price, coin.price_increment, amt);
   if (!confirm(`Купить ${amt} ${coin.symbol} за ${Math.round(cost).toLocaleString('ru')} кликов?`)) return;
   try {
     const r = await fetch(`/api/exchange/buy/${S.user.telegram_id}/${coinId}`, {
@@ -4577,11 +4664,12 @@ async function openSellCoinModal(coinId) {
   const coin = _exCoins.find(c => c.id === coinId);
   const owned = _exUserCoins[coinId] || 0;
   if (!coin || !owned) { showToast('❌ Нет монет для продажи', 'error'); return; }
+  const isRandom = coin.price_mode === 'random';
   const amtStr = prompt(`💸 Продажа ${coin.name} (${coin.symbol})\nВаш баланс: ${owned.toLocaleString('ru')} монет\nСколько продать?`);
   if (!amtStr) return;
   const amt = parseInt(amtStr);
   if (!amt || amt < 1 || amt > owned) { showToast('❌ Неверное количество', 'error'); return; }
-  const rev = calcSellRevenue(coin.current_price, coin.price_increment, amt);
+  const rev = isRandom ? amt * coin.current_price : calcSellRevenue(coin.current_price, coin.price_increment, amt);
   if (!confirm(`Продать ${amt} ${coin.symbol} за ≈ ${Math.round(rev).toLocaleString('ru')} кликов?`)) return;
   try {
     const r = await fetch(`/api/exchange/sell/${S.user.telegram_id}/${coinId}`, {
@@ -4736,6 +4824,18 @@ async function loadAdminCoins() {
     if (!list.length) { c.innerHTML='<div class="empty"><div class="empty-icon">🪙</div>Монет нет</div>'; return; }
     c.innerHTML = list.map(co => {
       const st = co.is_active ? '<span class="tag tag-green">Активна</span>' : '<span class="tag tag-red">Выкл</span>';
+      const modeTag = (co.price_mode === 'random')
+        ? `<span class="tag tag-blue">🎲 Случайная</span>`
+        : `<span class="tag tag-blue">📊 Рыночная</span>`;
+      const priceTags = (co.price_mode === 'random')
+        ? `<span class="tag tag-yellow">💰 ${co.current_price}</span>
+           <span class="tag tag-blue">📦 ${co.available_supply}/${co.total_supply}</span>
+           <span class="tag tag-blue">±${co.price_change_min_pct}%..${co.price_change_max_pct}%</span>
+           ${co.price_floor!=null?`<span class="tag tag-green">↓≥${co.price_floor}</span>`:''}
+           ${co.price_ceiling!=null?`<span class="tag tag-red">↑≤${co.price_ceiling}</span>`:''}`
+        : `<span class="tag tag-yellow">💰 ${co.current_price}</span>
+           <span class="tag tag-blue">📦 ${co.available_supply}/${co.total_supply}</span>
+           <span class="tag tag-blue">+${co.price_increment}/монета</span>`;
       return `<div class="card">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <span style="font-size:24px">${co.icon}</span>
@@ -4745,9 +4845,7 @@ async function loadAdminCoins() {
           </div>${st}
         </div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
-          <span class="tag tag-yellow">💰 ${co.current_price}</span>
-          <span class="tag tag-blue">📦 ${co.available_supply}/${co.total_supply}</span>
-          <span class="tag tag-blue">+${co.price_increment}/монета</span>
+          ${modeTag}${priceTags}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-edit btn-sm" style="flex:1" onclick="openEditCoinModal(${JSON.stringify(co).replace(/"/g,'&quot;')})">✏️</button>
@@ -4766,10 +4864,30 @@ function openAddCoinModal() {
       <div class="form-group"><label class="form-label">Иконка</label><input class="form-input" id="coin-icon" placeholder="🪙" maxlength="4" value="🪙"></div>
     </div>
     <div class="form-group"><label class="form-label">Описание</label><input class="form-input" id="coin-desc" placeholder="Описание монеты"></div>
-    <div class="form-group"><label class="form-label">Всего монет</label><input class="form-input" type="number" id="coin-supply" placeholder="1000000" value="1000000" min="1"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="form-group"><label class="form-label">Начальная цена (кл.)</label><input class="form-input" type="number" id="coin-base-price" placeholder="1" value="1" min="0.01" step="0.01"></div>
-      <div class="form-group"><label class="form-label">Рост цены за 1 монету</label><input class="form-input" type="number" id="coin-increment" placeholder="1" value="1" min="0" step="0.001"></div>
+    <div class="form-group"><label class="form-label">Всего монет (лимит)</label><input class="form-input" type="number" id="coin-supply" placeholder="1000000" value="1000000" min="1"></div>
+    <div class="form-group">
+      <label class="form-label">Тип цены</label>
+      <select class="form-input" id="coin-price-mode" onchange="_onCoinModeChange()">
+        <option value="market">📊 Рыночная (зависит от спроса)</option>
+        <option value="random">🎲 Случайная (меняется каждые 3 мин.)</option>
+      </select>
+    </div>
+    <div id="coin-market-fields">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group"><label class="form-label">Начальная цена (кл.)</label><input class="form-input" type="number" id="coin-base-price" placeholder="1" value="1" min="0.01" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Рост за 1 монету</label><input class="form-input" type="number" id="coin-increment" placeholder="1" value="1" min="0" step="0.001"></div>
+      </div>
+    </div>
+    <div id="coin-random-fields" style="display:none">
+      <div class="form-group"><label class="form-label">Начальная цена (кл.)</label><input class="form-input" type="number" id="coin-base-price-r" placeholder="100" value="100" min="0.01" step="0.01"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group"><label class="form-label">Мин. изменение (%)</label><input class="form-input" type="number" id="coin-min-pct" placeholder="-5" value="-5" step="0.1"></div>
+        <div class="form-group"><label class="form-label">Макс. изменение (%)</label><input class="form-input" type="number" id="coin-max-pct" placeholder="5" value="5" step="0.1"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group"><label class="form-label">Минимальный пол (кл.)</label><input class="form-input" type="number" id="coin-floor" placeholder="необязательно" min="0" step="0.01"></div>
+        <div class="form-group"><label class="form-label">Максимальный потолок (кл.)</label><input class="form-input" type="number" id="coin-ceiling" placeholder="необязательно" min="0" step="0.01"></div>
+      </div>
     </div>
     <input type="hidden" id="coin-edit-id">
     <div style="display:flex;gap:8px;margin-top:12px">
@@ -4790,6 +4908,12 @@ function openAddCoinModal() {
   openModal('modal-coin-edit');
 }
 
+function _onCoinModeChange() {
+  const mode = document.getElementById('coin-price-mode')?.value;
+  document.getElementById('coin-market-fields').style.display = mode === 'random' ? 'none' : '';
+  document.getElementById('coin-random-fields').style.display = mode === 'random' ? '' : 'none';
+}
+
 function openEditCoinModal(co) {
   openAddCoinModal();
   document.getElementById('modal-coin-title').textContent = 'Редактировать монету';
@@ -4799,13 +4923,29 @@ function openEditCoinModal(co) {
   document.getElementById('coin-icon').value = co.icon;
   document.getElementById('coin-desc').value = co.description || '';
   document.getElementById('coin-supply').value = co.total_supply;
-  document.getElementById('coin-base-price').value = co.base_price;
-  document.getElementById('coin-increment').value = co.price_increment;
+  const mode = co.price_mode || 'market';
+  document.getElementById('coin-price-mode').value = mode;
+  _onCoinModeChange();
+  if (mode === 'random') {
+    document.getElementById('coin-base-price-r').value = co.base_price;
+    document.getElementById('coin-min-pct').value = co.price_change_min_pct ?? -5;
+    document.getElementById('coin-max-pct').value = co.price_change_max_pct ?? 5;
+    document.getElementById('coin-floor').value = co.price_floor ?? '';
+    document.getElementById('coin-ceiling').value = co.price_ceiling ?? '';
+  } else {
+    document.getElementById('coin-base-price').value = co.base_price;
+    document.getElementById('coin-increment').value = co.price_increment;
+  }
 }
 
 async function submitCoinForm() {
   if (!S.user) return;
   const editId = document.getElementById('coin-edit-id')?.value;
+  const mode = document.getElementById('coin-price-mode')?.value || 'market';
+  const isRandom = mode === 'random';
+  const basePrice = isRandom
+    ? parseFloat(document.getElementById('coin-base-price-r')?.value) || 100
+    : parseFloat(document.getElementById('coin-base-price')?.value) || 1;
   const body = {
     admin_telegram_id: S.user.telegram_id,
     name: document.getElementById('coin-name')?.value?.trim(),
@@ -4813,8 +4953,13 @@ async function submitCoinForm() {
     icon: document.getElementById('coin-icon')?.value?.trim() || '🪙',
     description: document.getElementById('coin-desc')?.value?.trim() || '',
     total_supply: parseInt(document.getElementById('coin-supply')?.value) || 1000000,
-    base_price: parseFloat(document.getElementById('coin-base-price')?.value) || 1,
-    price_increment: parseFloat(document.getElementById('coin-increment')?.value) || 1,
+    base_price: basePrice,
+    price_increment: isRandom ? 0 : (parseFloat(document.getElementById('coin-increment')?.value) || 1),
+    price_mode: mode,
+    price_change_min_pct: isRandom ? (parseFloat(document.getElementById('coin-min-pct')?.value) || -5) : -5,
+    price_change_max_pct: isRandom ? (parseFloat(document.getElementById('coin-max-pct')?.value) || 5) : 5,
+    price_floor: isRandom ? (parseFloat(document.getElementById('coin-floor')?.value) || null) : null,
+    price_ceiling: isRandom ? (parseFloat(document.getElementById('coin-ceiling')?.value) || null) : null,
   };
   if (!body.name || !body.symbol) { showToast('❌ Заполните название и символ', 'error'); return; }
   try {

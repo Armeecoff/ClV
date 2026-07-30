@@ -153,7 +153,10 @@ async def list_vpn():
             "price_clicks": c.price_clicks, "duration_days": c.duration_days,
             "quantity_left": c.quantity_left,
             "is_premium_only": c.is_premium_only,
-            "available_until": c.available_until.isoformat() if c.available_until else None
+            "available_until": c.available_until.isoformat() if c.available_until else None,
+            "coin_req_1_id": c.coin_req_1_id, "coin_req_1_amount": c.coin_req_1_amount or 0,
+            "coin_req_2_id": c.coin_req_2_id, "coin_req_2_amount": c.coin_req_2_amount or 0,
+            "coin_req_3_id": c.coin_req_3_id, "coin_req_3_amount": c.coin_req_3_amount or 0,
         }
         for c in configs
     ]
@@ -409,6 +412,9 @@ async def admin_get_vpn(telegram_id: int):
             "is_unique": bool(c.is_unique),
             "unique_links": _json.loads(c.unique_links) if c.unique_links else [],
             "connect_url": c.connect_url or "",
+            "coin_req_1_id": c.coin_req_1_id, "coin_req_1_amount": c.coin_req_1_amount or 0,
+            "coin_req_2_id": c.coin_req_2_id, "coin_req_2_amount": c.coin_req_2_amount or 0,
+            "coin_req_3_id": c.coin_req_3_id, "coin_req_3_amount": c.coin_req_3_amount or 0,
         }
         for c in configs
     ]
@@ -427,6 +433,12 @@ class VPNCreate(BaseModel):
     is_unique: bool = False
     unique_links: Optional[list] = None
     connect_url: Optional[str] = None
+    coin_req_1_id: Optional[int] = None
+    coin_req_1_amount: float = 0.0
+    coin_req_2_id: Optional[int] = None
+    coin_req_2_amount: float = 0.0
+    coin_req_3_id: Optional[int] = None
+    coin_req_3_amount: float = 0.0
 
 
 @app.post("/api/admin/vpn")
@@ -444,7 +456,10 @@ async def admin_add_vpn(data: VPNCreate):
         quantity=data.quantity, available_until=available_until,
         created_by=data.admin_telegram_id, is_premium_only=data.is_premium_only,
         is_unique=data.is_unique, unique_links=data.unique_links,
-        connect_url=data.connect_url
+        connect_url=data.connect_url,
+        coin_req_1_id=data.coin_req_1_id, coin_req_1_amount=data.coin_req_1_amount,
+        coin_req_2_id=data.coin_req_2_id, coin_req_2_amount=data.coin_req_2_amount,
+        coin_req_3_id=data.coin_req_3_id, coin_req_3_amount=data.coin_req_3_amount,
     )
     return {"ok": True, "id": vpn.id}
 
@@ -465,6 +480,12 @@ class VPNEdit(BaseModel):
     is_unique: Optional[bool] = None
     unique_links: Optional[list] = None
     connect_url: Optional[str] = None
+    coin_req_1_id: Optional[int] = None
+    coin_req_1_amount: Optional[float] = None
+    coin_req_2_id: Optional[int] = None
+    coin_req_2_amount: Optional[float] = None
+    coin_req_3_id: Optional[int] = None
+    coin_req_3_amount: Optional[float] = None
 
 
 @app.post("/api/admin/vpn/edit")
@@ -1086,6 +1107,11 @@ class CoinCreateBody(BaseModel):
     total_supply: int = 1000000
     base_price: float = 1.0
     price_increment: float = 1.0
+    price_mode: str = "market"
+    price_change_min_pct: float = -5.0
+    price_change_max_pct: float = 5.0
+    price_floor: Optional[float] = None
+    price_ceiling: Optional[float] = None
 
 
 @app.post("/api/admin/coins/create")
@@ -1094,7 +1120,10 @@ async def api_admin_create_coin(data: CoinCreateBody):
     return await admin_create_coin(
         name=data.name, symbol=data.symbol, icon=data.icon,
         description=data.description, total_supply=data.total_supply,
-        base_price=data.base_price, price_increment=data.price_increment
+        base_price=data.base_price, price_increment=data.price_increment,
+        price_mode=data.price_mode, price_change_min_pct=data.price_change_min_pct,
+        price_change_max_pct=data.price_change_max_pct,
+        price_floor=data.price_floor, price_ceiling=data.price_ceiling,
     )
 
 
@@ -1110,6 +1139,11 @@ class CoinEditBody(BaseModel):
     price_increment: Optional[float] = None
     current_price: Optional[float] = None
     is_active: Optional[bool] = None
+    price_mode: Optional[str] = None
+    price_change_min_pct: Optional[float] = None
+    price_change_max_pct: Optional[float] = None
+    price_floor: Optional[float] = None
+    price_ceiling: Optional[float] = None
 
 
 @app.post("/api/admin/coins/edit")

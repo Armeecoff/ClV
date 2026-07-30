@@ -1,7 +1,7 @@
 import asyncio
 import uvicorn
 import logging
-from database.db import init_db
+from database.db import init_db, update_random_coin_prices
 from bot.main import start_bot
 from webapp.app import app
 from config import PORT
@@ -32,7 +32,8 @@ async def main():
 
     await asyncio.gather(
         server.serve(),
-        start_bot()
+        start_bot(),
+        update_random_coin_prices()
     )
 
 

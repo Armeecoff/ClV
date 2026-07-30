@@ -64,6 +64,21 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS news_notify_enabled BOOLEAN DEFAULT TRUE NOT NULL",
             "CREATE TABLE IF NOT EXISTS news (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, icon VARCHAR(20) DEFAULT '📰' NOT NULL, content TEXT NOT NULL, is_active BOOLEAN DEFAULT TRUE NOT NULL, notify_sent BOOLEAN DEFAULT FALSE NOT NULL, created_at TIMESTAMP DEFAULT NOW() NOT NULL)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS autobuy_max_count INTEGER DEFAULT NULL",
+            # New columns for VPN connect URL stored at purchase time
+            "ALTER TABLE vpn_purchases ADD COLUMN IF NOT EXISTS connect_url TEXT DEFAULT NULL",
+            # New columns for random-price coin mode
+            "ALTER TABLE coins ADD COLUMN IF NOT EXISTS price_mode VARCHAR(10) DEFAULT 'market' NOT NULL",
+            "ALTER TABLE coins ADD COLUMN IF NOT EXISTS price_change_min_pct FLOAT DEFAULT -5.0 NOT NULL",
+            "ALTER TABLE coins ADD COLUMN IF NOT EXISTS price_change_max_pct FLOAT DEFAULT 5.0 NOT NULL",
+            "ALTER TABLE coins ADD COLUMN IF NOT EXISTS price_floor FLOAT DEFAULT NULL",
+            "ALTER TABLE coins ADD COLUMN IF NOT EXISTS price_ceiling FLOAT DEFAULT NULL",
+            # New columns for VPN coin payment requirements
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_1_id INTEGER DEFAULT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_1_amount FLOAT DEFAULT 0",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_2_id INTEGER DEFAULT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_2_amount FLOAT DEFAULT 0",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_3_id INTEGER DEFAULT NULL",
+            "ALTER TABLE vpn_configs ADD COLUMN IF NOT EXISTS coin_req_3_amount FLOAT DEFAULT 0",
         ]
         for sql in migrations:
             try:
@@ -400,7 +415,10 @@ async def auto_disable_expired_vpns():
             await session.commit()
 
 
-async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False, is_unique=False, unique_links=None, connect_url=None) -> VPNConfig:
+async def add_vpn_config(name, description, config_data, price_clicks, duration_days, quantity, available_until, created_by, is_premium_only=False, is_unique=False, unique_links=None, connect_url=None,
+                         coin_req_1_id=None, coin_req_1_amount=0.0,
+                         coin_req_2_id=None, coin_req_2_amount=0.0,
+                         coin_req_3_id=None, coin_req_3_amount=0.0) -> VPNConfig:
     import json as _json
     async with async_session() as session:
         if available_until is None:
@@ -417,7 +435,10 @@ async def add_vpn_config(name, description, config_data, price_clicks, duration_
             available_until=available_until, created_by=created_by,
             is_premium_only=is_premium_only,
             is_unique=is_unique, unique_links=unique_links_json,
-            connect_url=connect_url or None
+            connect_url=connect_url or None,
+            coin_req_1_id=coin_req_1_id or None, coin_req_1_amount=coin_req_1_amount or 0.0,
+            coin_req_2_id=coin_req_2_id or None, coin_req_2_amount=coin_req_2_amount or 0.0,
+            coin_req_3_id=coin_req_3_id or None, coin_req_3_amount=coin_req_3_amount or 0.0,
         )
         session.add(vpn)
         await session.commit()
@@ -498,10 +519,47 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
         if user.balance < effective_price:
             return {"ok": False, "error": f"Нужно {int(effective_price)} кликов"}
 
+        # Check coin requirements
+        coin_reqs = []
+        for req_id_attr, req_amt_attr in [
+            ("coin_req_1_id", "coin_req_1_amount"),
+            ("coin_req_2_id", "coin_req_2_amount"),
+            ("coin_req_3_id", "coin_req_3_amount"),
+        ]:
+            cid = getattr(vpn, req_id_attr)
+            camount = getattr(vpn, req_amt_attr) or 0.0
+            if cid and camount > 0:
+                coin_reqs.append((cid, camount))
+
+        user_coin_records = {}
+        for cid, camount in coin_reqs:
+            uc_res = await session.execute(
+                select(UserCoin).where(UserCoin.user_id == user.id, UserCoin.coin_id == cid)
+            )
+            uc = uc_res.scalar_one_or_none()
+            if not uc or uc.amount < camount:
+                coin_res2 = await session.execute(select(Coin).where(Coin.id == cid))
+                coin_obj = coin_res2.scalar_one_or_none()
+                sym = coin_obj.symbol if coin_obj else f"#{cid}"
+                have = round(uc.amount, 2) if uc else 0
+                return {"ok": False, "error": f"Нужно {camount} {sym} (у вас {have})"}
+            user_coin_records[cid] = (uc, camount)
+
         import json as _json
         user.balance -= effective_price
         vpn.quantity_left -= 1
         expires_at = vpn.available_until if vpn.available_until else now + timedelta(days=vpn.duration_days)
+
+        # Deduct coins and return them to available_supply
+        for cid, (uc, camount) in user_coin_records.items():
+            uc.amount -= camount
+            coin_res2 = await session.execute(select(Coin).where(Coin.id == cid))
+            coin_obj = coin_res2.scalar_one_or_none()
+            if coin_obj:
+                coin_obj.available_supply = min(
+                    coin_obj.total_supply,
+                    coin_obj.available_supply + int(camount)
+                )
 
         assigned_link = None
         if vpn.is_unique and vpn.unique_links:
@@ -513,7 +571,14 @@ async def buy_vpn(telegram_id: int, vpn_id: int) -> dict:
             except Exception:
                 pass
 
-        purchase = VPNPurchase(user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price, expires_at=expires_at, assigned_link=assigned_link)
+        # Freeze connect_url at purchase time: assigned_link takes priority, then config connect_url
+        purchase_connect_url = assigned_link or vpn.connect_url or None
+
+        purchase = VPNPurchase(
+            user_id=user.id, vpn_config_id=vpn.id, price_paid=effective_price,
+            expires_at=expires_at, assigned_link=assigned_link,
+            connect_url=purchase_connect_url
+        )
         session.add(purchase)
         await session.commit()
         res = {"ok": True, "config_data": vpn.config_data, "expires_at": expires_at.isoformat(), "new_balance": user.balance}
@@ -536,13 +601,15 @@ async def get_user_vpn_purchases(telegram_id: int) -> list:
         for p in purchases:
             vpn_res = await session.execute(select(VPNConfig).where(VPNConfig.id == p.vpn_config_id))
             vpn = vpn_res.scalar_one_or_none()
+            # Use connect_url frozen at purchase time; fall back to config's current url
+            purchase_connect_url = p.connect_url or ((vpn.connect_url or "") if vpn else "")
             out.append({
                 "id": p.id, "vpn_name": vpn.name if vpn else "Удалён",
                 "price_paid": p.price_paid, "purchased_at": p.purchased_at.isoformat(),
                 "expires_at": p.expires_at.isoformat() if p.expires_at else None,
                 "config_data": vpn.config_data if vpn else "",
                 "assigned_link": p.assigned_link or "",
-                "connect_url": (vpn.connect_url or "") if vpn else "",
+                "connect_url": purchase_connect_url,
                 "is_unique": (vpn.is_unique if vpn else False),
             })
         return out
@@ -1969,7 +2036,12 @@ def _coin_dict(c: Coin) -> dict:
         "description": c.description, "total_supply": c.total_supply,
         "available_supply": c.available_supply, "base_price": c.base_price,
         "price_increment": c.price_increment, "current_price": c.current_price,
-        "is_active": c.is_active, "created_at": c.created_at.isoformat()
+        "is_active": c.is_active, "created_at": c.created_at.isoformat(),
+        "price_mode": getattr(c, "price_mode", "market") or "market",
+        "price_change_min_pct": getattr(c, "price_change_min_pct", -5.0),
+        "price_change_max_pct": getattr(c, "price_change_max_pct", 5.0),
+        "price_floor": getattr(c, "price_floor", None),
+        "price_ceiling": getattr(c, "price_ceiling", None),
     }
 
 
@@ -1988,7 +2060,10 @@ async def get_all_coins_admin() -> list:
 
 
 async def admin_create_coin(name: str, symbol: str, icon: str, description: str,
-                            total_supply: int, base_price: float, price_increment: float) -> dict:
+                            total_supply: int, base_price: float, price_increment: float,
+                            price_mode: str = "market", price_change_min_pct: float = -5.0,
+                            price_change_max_pct: float = 5.0,
+                            price_floor: float = None, price_ceiling: float = None) -> dict:
     async with async_session() as session:
         existing = await session.execute(select(Coin).where(Coin.symbol == symbol.upper()))
         if existing.scalar_one_or_none():
@@ -1997,7 +2072,12 @@ async def admin_create_coin(name: str, symbol: str, icon: str, description: str,
             name=name, symbol=symbol.upper(), icon=icon or "🪙",
             description=description, total_supply=total_supply,
             available_supply=total_supply, base_price=base_price,
-            price_increment=price_increment, current_price=base_price
+            price_increment=price_increment, current_price=base_price,
+            price_mode=price_mode or "market",
+            price_change_min_pct=price_change_min_pct,
+            price_change_max_pct=price_change_max_pct,
+            price_floor=price_floor,
+            price_ceiling=price_ceiling,
         )
         session.add(coin)
         await session.commit()
@@ -2115,12 +2195,17 @@ async def buy_coins(telegram_id: int, coin_id: int, amount: int) -> dict:
             return {"ok": False, "error": "Монета не найдена"}
         if coin.available_supply < amount:
             return {"ok": False, "error": f"Недостаточно монет в обороте (доступно: {coin.available_supply})"}
-        cost = _calc_buy_cost(coin, amount)
+        mode = getattr(coin, "price_mode", "market") or "market"
+        if mode == "random":
+            cost = round(amount * coin.current_price, 4)
+        else:
+            cost = _calc_buy_cost(coin, amount)
         if user.balance < cost:
             return {"ok": False, "error": f"Недостаточно кликов. Нужно: {int(cost)}, есть: {int(user.balance)}"}
         user.balance -= cost
         coin.available_supply -= amount
-        coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
+        if mode != "random":
+            coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
         uc_res = await session.execute(
             select(UserCoin).where(UserCoin.user_id == user.id, UserCoin.coin_id == coin_id)
         )
@@ -2154,17 +2239,52 @@ async def sell_coins(telegram_id: int, coin_id: int, amount: int) -> dict:
         uc = uc_res.scalar_one_or_none()
         if not uc or uc.amount < amount:
             return {"ok": False, "error": f"Недостаточно монет. Есть: {int(uc.amount) if uc else 0}"}
-        revenue = _calc_sell_revenue(coin, amount)
+        mode = getattr(coin, "price_mode", "market") or "market"
+        if mode == "random":
+            revenue = round(amount * coin.current_price, 4)
+        else:
+            revenue = _calc_sell_revenue(coin, amount)
         uc.amount -= amount
         user.balance += revenue
         if user.balance > user.max_balance:
             user.max_balance = user.balance
         coin.available_supply += amount
-        coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
+        if mode != "random":
+            coin.current_price = round(coin.base_price + coin.price_increment * (coin.total_supply - coin.available_supply), 4)
         await session.commit()
         await add_user_log(user.id, telegram_id, "coin_sell",
                            f"Продано {amount} {coin.symbol} за {int(revenue)} кликов")
         return {"ok": True, "revenue": revenue, "new_balance": user.balance, "new_price": coin.current_price}
+
+
+async def update_random_coin_prices():
+    """Background task: updates prices for all random-mode coins every 3 minutes."""
+    import asyncio as _asyncio
+    while True:
+        await _asyncio.sleep(180)
+        try:
+            async with async_session() as session:
+                result = await session.execute(
+                    select(Coin).where(Coin.is_active == True, Coin.price_mode == "random")
+                )
+                coins = result.scalars().all()
+                for coin in coins:
+                    min_pct = getattr(coin, "price_change_min_pct", -5.0) or -5.0
+                    max_pct = getattr(coin, "price_change_max_pct", 5.0) or 5.0
+                    pct = random.uniform(min_pct, max_pct)
+                    new_price = coin.current_price * (1 + pct / 100.0)
+                    floor_ = getattr(coin, "price_floor", None)
+                    ceil_ = getattr(coin, "price_ceiling", None)
+                    if floor_ is not None:
+                        new_price = max(new_price, floor_)
+                    if ceil_ is not None:
+                        new_price = min(new_price, ceil_)
+                    new_price = max(new_price, 0.0001)
+                    coin.current_price = round(new_price, 4)
+                if coins:
+                    await session.commit()
+        except Exception:
+            pass
 
 
 # ── Trades ────────────────────────────────────────────────────
